@@ -25,9 +25,9 @@
       <div class="greeting-row">
         <div>
           <p class="eyebrow" id="greetingDate">星期三 · 7月15日</p>
-          <h1>早上好，<span>小满</span></h1>
+          <h1>早上好，<span id="childNameText">小满</span></h1>
         </div>
-        <div class="avatar">满</div>
+        <div class="avatar" id="avatarText">满</div>
       </div>
 
       <section class="hero-card">
@@ -80,11 +80,47 @@
       <div class="points-history" id="pointsHistory"></div>
     </section>
 
+    <section class="screen hidden" id="profileScreen">
+      <div class="page-title"><p class="eyebrow">MY ACCOUNT</p><h1>我的</h1><p id="accountSubtitle">登录后，每个孩子都拥有独立的计划和积分。</p></div>
+
+      <section class="auth-card" id="authGuestView">
+        <div class="auth-brand"><span class="auth-brand-mark">🌱</span><div><strong>欢迎来到小树暑托</strong><small>登录你的成长账户</small></div></div>
+        <div class="auth-tabs" role="tablist" aria-label="登录或注册">
+          <button class="auth-tab active" type="button" data-auth-tab="login">登录</button>
+          <button class="auth-tab" type="button" data-auth-tab="register">注册</button>
+        </div>
+
+        <form class="auth-form" id="loginForm">
+          <label class="form-row">邮箱<input id="loginEmailInput" type="email" autocomplete="email" required placeholder="name@example.com" /></label>
+          <label class="form-row">密码<input id="loginPasswordInput" type="password" autocomplete="current-password" minlength="6" required placeholder="请输入密码" /></label>
+          <button class="auth-submit" type="submit">登录</button>
+        </form>
+
+        <form class="auth-form hidden" id="registerForm">
+          <label class="form-row">孩子昵称<input id="registerNameInput" autocomplete="name" required maxlength="12" placeholder="例如：小满" /></label>
+          <label class="form-row">邮箱<input id="registerEmailInput" type="email" autocomplete="email" required placeholder="name@example.com" /></label>
+          <label class="form-row">密码<input id="registerPasswordInput" type="password" autocomplete="new-password" minlength="6" required placeholder="至少 6 位" /></label>
+          <label class="form-row">确认密码<input id="registerConfirmInput" type="password" autocomplete="new-password" minlength="6" required placeholder="再次输入密码" /></label>
+          <button class="auth-submit" type="submit">创建账户</button>
+        </form>
+        <p class="auth-message" id="authMessage" role="status"></p>
+        <p class="auth-note">当前为静态公开版，账户和密码校验仅保存在这台设备的浏览器中，不支持跨设备登录。</p>
+      </section>
+
+      <section class="account-card hidden" id="authUserView">
+        <div class="account-hero"><div class="account-avatar" id="accountAvatar">满</div><div><strong id="accountName">小满</strong><span id="accountEmail">name@example.com</span></div><span class="login-badge">已登录</span></div>
+        <div class="account-stats"><div><span>当前积分</span><strong id="accountPoints">280</strong></div><div><span>累计获得</span><strong id="accountEarned">340</strong></div><div><span>累计兑换</span><strong id="accountRedeemed">0</strong></div></div>
+        <div class="account-setting"><div><strong>数据存储</strong><small>计划、打卡与积分已关联到当前账户</small></div><span>本机</span></div>
+        <button class="account-button" id="resetDataBtn" type="button">恢复示例数据</button>
+        <button class="account-button logout-button" id="logoutBtn" type="button">退出登录</button>
+      </section>
+    </section>
+
     <nav class="bottom-nav" aria-label="主导航">
       <button class="nav-item active" data-screen="homeScreen"><span>⌂</span><small>今日</small></button>
       <button class="nav-item" data-screen="statsScreen"><span>▥</span><small>统计</small></button>
       <button class="nav-item" data-screen="rewardsScreen"><span>♢</span><small>奖励</small></button>
-      <button class="nav-item" id="profileBtn"><span>◌</span><small>我的</small></button>
+      <button class="nav-item" id="profileBtn" data-screen="profileScreen"><span>◌</span><small>我的</small></button>
     </nav>
   </main>
   <div class="modal-backdrop hidden" id="taskModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
@@ -96,15 +132,6 @@
       <label class="form-row">安排日期<select id="taskDayInput"><option value="today">今天</option><option value="tomorrow">明天</option><option value="later">后天</option></select></label>
       <div class="modal-actions"><button class="danger-button hidden" id="deleteTaskBtn" type="button">删除</button><button class="save-button" type="submit">保存计划</button></div>
     </form>
-  </div>
-  <div class="modal-backdrop hidden" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
-    <section class="task-modal profile-modal">
-      <div class="modal-heading"><h2 id="profileTitle">小满的暑托</h2><button class="modal-close" id="closeProfileBtn" type="button" aria-label="关闭">×</button></div>
-      <p class="profile-copy">所有计划、打卡和积分都保存在这台设备中。</p>
-      <div class="profile-summary"><span>累计获得积分</span><strong id="totalEarnedText">340</strong></div>
-      <div class="profile-summary secondary-summary"><span>累计兑换积分</span><strong id="totalRedeemedText">0</strong></div>
-      <button class="reset-button" id="resetDataBtn" type="button">恢复示例数据</button>
-    </section>
   </div>
   <div class="modal-backdrop hidden" id="rewardModal" role="dialog" aria-modal="true" aria-labelledby="rewardModalTitle">
     <form class="task-modal" id="rewardForm">

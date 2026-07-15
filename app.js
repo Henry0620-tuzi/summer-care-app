@@ -45,11 +45,39 @@ function freshState() {
   };
 }
 
+const USERS_KEY = 'summerCareUsersV1';
+const SESSION_KEY = 'summerCareSessionV1';
+const GUEST_STATE_KEY = 'summerCareStateV2';
+
+function loadUsers() {
+  try {
+    return JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+  } catch (error) {
+    console.warn('账户数据读取失败。', error);
+    return {};
+  }
+}
+
+function loadSession() {
+  return localStorage.getItem(SESSION_KEY) || '';
+}
+
+let users = loadUsers();
+let currentUserEmail = loadSession();
+if (currentUserEmail && !users[currentUserEmail]) {
+  currentUserEmail = '';
+  localStorage.removeItem(SESSION_KEY);
+}
+
+function activeStateKey() {
+  return currentUserEmail ? `summerCareStateV2:${currentUserEmail}` : GUEST_STATE_KEY;
+}
+
 function loadState() {
   try {
-    const current = JSON.parse(localStorage.getItem('summerCareStateV2') || 'null');
+    const current = JSON.parse(localStorage.getItem(activeStateKey()) || 'null');
     if (current) return current;
-    const legacy = JSON.parse(localStorage.getItem('summerCareState') || 'null');
+    const legacy = currentUserEmail ? null : JSON.parse(localStorage.getItem('summerCareState') || 'null');
     if (legacy?.tasks) {
       const migrated = freshState();
       migrated.points = Number(legacy.points) || migrated.points;
@@ -76,7 +104,45 @@ let editingTask = null;
 let editingReward = null;
 
 function save() {
-  localStorage.setItem('summerCareStateV2', JSON.stringify(state));
+  localStorage.setItem(activeStateKey(), JSON.stringify(state));
+}
+
+function normalizeEmail(email) {
+  return email.trim().toLowerCase();
+}
+
+async function hashPassword(password) {
+  if (window.crypto?.subtle) {
+    const bytes = new TextEncoder().encode(password);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+  return btoa(unescape(encodeURIComponent(password)));
+}
+
+function saveUsers() {
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+function currentUser() {
+  return currentUserEmail ? users[currentUserEmail] : null;
+}
+
+function switchAccount(email) {
+  currentUserEmail = email;
+  if (email) localStorage.setItem(SESSION_KEY, email);
+  else localStorage.removeItem(SESSION_KEY);
+  state = loadState();
+  state.totalEarned ??= 340;
+  state.redeemed ??= 0;
+  state.rewards = (state.rewards || clone(initialRewards)).map((reward, index) => ({ id: reward.id || index + 1, ...reward }));
+  state.transactions ??= [];
+  state.history ??= [3, 2, 3, 3, 1, 2, 1];
+  state.plans ??= clone(initialPlans);
+  state.selectedDay ??= 'today';
+  state.history[todayHistoryIndex()] = (state.plans.today || []).filter(task => task.done).length;
+  save();
+  render();
 }
 
 function safe(text) {
@@ -233,16 +299,49 @@ function renderChart() {
 
 function render() {
   $('#greetingDate').textContent = formatGreetingDate();
+  renderAccount();
   renderTasks();
   renderRewards();
   renderHistory();
   renderChart();
 }
 
+function renderAccount() {
+  const user = currentUser();
+  const displayName = user?.name || '小满';
+  const initial = displayName.slice(-1);
+  $('#childNameText').textContent = displayName;
+  $('#avatarText').textContent = initial;
+  $('#authGuestView').classList.toggle('hidden', Boolean(user));
+  $('#authUserView').classList.toggle('hidden', !user);
+  $('#accountSubtitle').textContent = user ? '查看账户状态与成长数据。' : '登录后，每个孩子都拥有独立的计划和积分。';
+  if (!user) return;
+  $('#accountAvatar').textContent = initial;
+  $('#accountName').textContent = user.name;
+  $('#accountEmail').textContent = user.email;
+  $('#accountPoints').textContent = state.points;
+  $('#accountEarned').textContent = state.totalEarned;
+  $('#accountRedeemed').textContent = state.redeemed;
+}
+
 function showScreen(id) {
   $$('.screen').forEach(screen => screen.classList.toggle('hidden', screen.id !== id));
   $$('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.screen === id));
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setAuthTab(tab) {
+  const isLogin = tab === 'login';
+  $('#loginForm').classList.toggle('hidden', !isLogin);
+  $('#registerForm').classList.toggle('hidden', isLogin);
+  $$('.auth-tab').forEach(button => button.classList.toggle('active', button.dataset.authTab === tab));
+  $('#authMessage').textContent = '';
+}
+
+function showAuthMessage(message, type = 'error') {
+  const element = $('#authMessage');
+  element.textContent = message;
+  element.className = `auth-message ${type}`;
 }
 
 function openTaskModal(id) {
@@ -409,17 +508,53 @@ $('#addRewardBtn').onclick = () => openRewardModal();
 $('#closeRewardModalBtn').onclick = closeRewardModal;
 $('#rewardModal').onclick = event => { if (event.target === event.currentTarget) closeRewardModal(); };
 $('#notifyBtn').onclick = () => toast('今天 18:00 有一条待完成计划');
-$('#profileBtn').onclick = () => {
-  $('#totalEarnedText').textContent = state.totalEarned;
-  $('#totalRedeemedText').textContent = state.redeemed;
-  $('#profileModal').classList.remove('hidden');
+$$('.auth-tab').forEach(button => button.onclick = () => setAuthTab(button.dataset.authTab));
+$('#loginForm').onsubmit = async event => {
+  event.preventDefault();
+  const email = normalizeEmail($('#loginEmailInput').value);
+  const password = $('#loginPasswordInput').value;
+  const user = users[email];
+  if (!user || user.passwordHash !== await hashPassword(password)) {
+    showAuthMessage('邮箱或密码不正确，请重新输入。');
+    return;
+  }
+  switchAccount(email);
+  $('#loginForm').reset();
+  toast(`欢迎回来，${user.name}`);
 };
-$('#closeProfileBtn').onclick = () => $('#profileModal').classList.add('hidden');
-$('#profileModal').onclick = event => { if (event.target === event.currentTarget) $('#profileModal').classList.add('hidden'); };
+$('#registerForm').onsubmit = async event => {
+  event.preventDefault();
+  const name = $('#registerNameInput').value.trim();
+  const email = normalizeEmail($('#registerEmailInput').value);
+  const password = $('#registerPasswordInput').value;
+  const confirmPassword = $('#registerConfirmInput').value;
+  if (users[email]) {
+    showAuthMessage('该邮箱已经注册，请直接登录。');
+    return;
+  }
+  if (password.length < 6) {
+    showAuthMessage('密码至少需要 6 位。');
+    return;
+  }
+  if (password !== confirmPassword) {
+    showAuthMessage('两次输入的密码不一致。');
+    return;
+  }
+  users[email] = { name, email, passwordHash: await hashPassword(password), createdAt: new Date().toISOString() };
+  saveUsers();
+  switchAccount(email);
+  $('#registerForm').reset();
+  toast(`账户创建成功，欢迎你，${name}`);
+};
+$('#logoutBtn').onclick = () => {
+  const name = currentUser()?.name || '';
+  switchAccount('');
+  setAuthTab('login');
+  toast(`${name}已退出登录`);
+};
 $('#resetDataBtn').onclick = () => {
   state = freshState();
   save();
-  $('#profileModal').classList.add('hidden');
   render();
   toast('已恢复示例数据');
 };
@@ -428,7 +563,6 @@ document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   closeTaskModal();
   closeRewardModal();
-  $('#profileModal').classList.add('hidden');
 });
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
