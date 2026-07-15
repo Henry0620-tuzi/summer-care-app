@@ -45,40 +45,22 @@ function freshState() {
   };
 }
 
-const USERS_KEY = 'summerCareUsersV1';
-const SESSION_KEY = 'summerCareSessionV1';
 const GUEST_STATE_KEY = 'summerCareStateV2';
-
-function loadUsers() {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
-  } catch (error) {
-    console.warn('账户数据读取失败。', error);
-    return {};
-  }
-}
-
-function loadSession() {
-  return localStorage.getItem(SESSION_KEY) || '';
-}
-
-let users = loadUsers();
-let currentUserEmail = loadSession();
-Object.values(users).forEach(user => user.status ??= 'active');
-if (currentUserEmail && (!users[currentUserEmail] || users[currentUserEmail].status === 'disabled')) {
-  currentUserEmail = '';
-  localStorage.removeItem(SESSION_KEY);
-}
+const { url: SUPABASE_URL, publishableKey: SUPABASE_KEY } = window.SUMMER_CARE_SUPABASE;
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let authUser = null;
+let profile = null;
+let cloudSaveTimer = null;
 
 function activeStateKey() {
-  return currentUserEmail ? `summerCareStateV2:${currentUserEmail}` : GUEST_STATE_KEY;
+  return authUser?.email ? `summerCareStateV2:${authUser.email}` : GUEST_STATE_KEY;
 }
 
 function loadState() {
   try {
     const current = JSON.parse(localStorage.getItem(activeStateKey()) || 'null');
     if (current) return current;
-    const legacy = currentUserEmail ? null : JSON.parse(localStorage.getItem('summerCareState') || 'null');
+    const legacy = authUser ? null : JSON.parse(localStorage.getItem('summerCareState') || 'null');
     if (legacy?.tasks) {
       const migrated = freshState();
       migrated.points = Number(legacy.points) || migrated.points;
@@ -107,39 +89,57 @@ let state = normalizeState(loadState());
 
 let editingTask = null;
 let editingReward = null;
+let passwordRecoveryMode = false;
 
 function save() {
   localStorage.setItem(activeStateKey(), JSON.stringify(state));
+  if (!authUser) return;
+  const userId = authUser.id;
+  const stateSnapshot = clone(state);
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(async () => {
+    const { error } = await supabaseClient.from('app_states').upsert({ user_id: userId, state: stateSnapshot, updated_at: new Date().toISOString() });
+    if (error) console.warn('云端保存失败，将保留本地副本。', error);
+  }, 350);
 }
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
 }
 
-async function hashPassword(password) {
-  if (window.crypto?.subtle) {
-    const bytes = new TextEncoder().encode(password);
-    const digest = await crypto.subtle.digest('SHA-256', bytes);
-    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-  }
-  return btoa(unescape(encodeURIComponent(password)));
-}
-
-function saveUsers() {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
 function currentUser() {
-  return currentUserEmail ? users[currentUserEmail] : null;
+  return profile;
 }
 
-function switchAccount(email) {
-  currentUserEmail = email;
-  if (email) localStorage.setItem(SESSION_KEY, email);
-  else localStorage.removeItem(SESSION_KEY);
-  state = normalizeState(loadState());
+async function loadCloudAccount(user) {
+  authUser = user;
+  const { data: profileData, error: profileError } = await supabaseClient.from('profiles').select('id,email,name,role,status,created_at,last_login_at').eq('id', user.id).single();
+  if (profileError) throw profileError;
+  if (profileData.status === 'disabled') {
+    await supabaseClient.auth.signOut();
+    throw new Error('该账户已被管理员停用。');
+  }
+  profile = profileData;
+  const { data: stateData, error: stateError } = await supabaseClient.from('app_states').select('state').eq('user_id', user.id).maybeSingle();
+  if (stateError) throw stateError;
+  const cloudState = stateData?.state;
+  const localState = loadState();
+  state = normalizeState(cloudState && Object.keys(cloudState).length ? cloudState : localState);
   state.history[todayHistoryIndex()] = (state.plans.today || []).filter(task => task.done).length;
-  save();
+  localStorage.setItem(activeStateKey(), JSON.stringify(state));
+  await Promise.all([
+    supabaseClient.from('app_states').upsert({ user_id: user.id, state, updated_at: new Date().toISOString() }),
+    supabaseClient.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', user.id)
+  ]);
+  render();
+}
+
+async function clearCloudAccount() {
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = null;
+  authUser = null;
+  profile = null;
+  state = normalizeState(loadState());
   render();
 }
 
@@ -165,6 +165,9 @@ function closeAccountModals() {
   $('#profileEditModal').classList.add('hidden');
   $('#userPasswordModal').classList.add('hidden');
   $('#userPasswordMessage').textContent = '';
+  passwordRecoveryMode = false;
+  $('#currentPasswordRow').classList.remove('hidden');
+  $('#currentPasswordInput').required = true;
 }
 
 function weeklyReportText() {
@@ -338,6 +341,7 @@ function renderAccount() {
   $('#avatarText').textContent = initial;
   $('#authGuestView').classList.toggle('hidden', Boolean(user));
   $('#authUserView').classList.toggle('hidden', !user);
+  $('#adminEntry').classList.toggle('hidden', user?.role !== 'admin');
   $('#accountSubtitle').textContent = user ? '查看账户状态与成长数据。' : '登录后，每个孩子都拥有独立的计划和积分。';
   if (!user) return;
   $('#accountAvatar').textContent = initial;
@@ -537,20 +541,29 @@ $('#loginForm').onsubmit = async event => {
   event.preventDefault();
   const email = normalizeEmail($('#loginEmailInput').value);
   const password = $('#loginPasswordInput').value;
-  const user = users[email];
-  if (!user || user.passwordHash !== await hashPassword(password)) {
-    showAuthMessage('邮箱或密码不正确，请重新输入。');
+  showAuthMessage('正在登录…', 'success');
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) {
+    showAuthMessage(error.message.includes('Email not confirmed') ? '请先打开注册邮件完成邮箱验证。' : '邮箱或密码不正确，请重新输入。');
     return;
   }
-  if (user.status === 'disabled') {
-    showAuthMessage('该账户已被管理员停用。');
+  try {
+    await loadCloudAccount(data.user);
+    $('#loginForm').reset();
+    showAuthMessage('');
+    toast(`欢迎回来，${profile.name}`);
+  } catch (accountError) {
+    showAuthMessage(accountError.message || '账户加载失败，请稍后再试。');
+  }
+};
+$('#forgotPasswordBtn').onclick = async () => {
+  const email = normalizeEmail($('#loginEmailInput').value);
+  if (!email) {
+    showAuthMessage('请先输入需要找回密码的邮箱。');
     return;
   }
-  user.lastLoginAt = new Date().toISOString();
-  saveUsers();
-  switchAccount(email);
-  $('#loginForm').reset();
-  toast(`欢迎回来，${user.name}`);
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: 'https://henry0620-tuzi.github.io/summer-care-app/' });
+  showAuthMessage(error ? `发送失败：${error.message}` : '密码重置邮件已发送，请检查邮箱。', error ? 'error' : 'success');
 };
 $('#registerForm').onsubmit = async event => {
   event.preventDefault();
@@ -558,10 +571,6 @@ $('#registerForm').onsubmit = async event => {
   const email = normalizeEmail($('#registerEmailInput').value);
   const password = $('#registerPasswordInput').value;
   const confirmPassword = $('#registerConfirmInput').value;
-  if (users[email]) {
-    showAuthMessage('该邮箱已经注册，请直接登录。');
-    return;
-  }
   if (password.length < 6) {
     showAuthMessage('密码至少需要 6 位。');
     return;
@@ -570,15 +579,29 @@ $('#registerForm').onsubmit = async event => {
     showAuthMessage('两次输入的密码不一致。');
     return;
   }
-  users[email] = { name, email, passwordHash: await hashPassword(password), status: 'active', createdAt: new Date().toISOString(), lastLoginAt: new Date().toISOString() };
-  saveUsers();
-  switchAccount(email);
+  showAuthMessage('正在创建云端账户…', 'success');
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: { data: { name }, emailRedirectTo: 'https://henry0620-tuzi.github.io/summer-care-app/' }
+  });
+  if (error) {
+    showAuthMessage(error.message.includes('already registered') ? '该邮箱已经注册，请直接登录。' : `注册失败：${error.message}`);
+    return;
+  }
   $('#registerForm').reset();
-  toast(`账户创建成功，欢迎你，${name}`);
+  if (data.session) {
+    await loadCloudAccount(data.user);
+    toast(`账户创建成功，欢迎你，${name}`);
+  } else {
+    setAuthTab('login');
+    showAuthMessage('注册成功！请打开验证邮件，完成后再登录。', 'success');
+  }
 };
-$('#logoutBtn').onclick = () => {
+$('#logoutBtn').onclick = async () => {
   const name = currentUser()?.name || '';
-  switchAccount('');
+  await supabaseClient.auth.signOut();
+  await clearCloudAccount();
   setAuthTab('login');
   toast(`${name}已退出登录`);
 };
@@ -591,18 +614,25 @@ $('#editProfileBtn').onclick = () => {
 };
 $('#closeProfileEditBtn').onclick = closeAccountModals;
 $('#profileEditModal').onclick = event => { if (event.target === event.currentTarget) closeAccountModals(); };
-$('#profileEditForm').onsubmit = event => {
+$('#profileEditForm').onsubmit = async event => {
   event.preventDefault();
   const user = currentUser();
   const name = $('#profileNameInput').value.trim();
   if (!user || !name) return;
-  user.name = name;
-  saveUsers();
+  const { error } = await supabaseClient.from('profiles').update({ name }).eq('id', authUser.id);
+  if (error) {
+    toast('资料更新失败，请稍后再试');
+    return;
+  }
+  profile.name = name;
   closeAccountModals();
   render();
   toast('个人资料已更新');
 };
 $('#changePasswordBtn').onclick = () => {
+  passwordRecoveryMode = false;
+  $('#currentPasswordRow').classList.remove('hidden');
+  $('#currentPasswordInput').required = true;
   $('#userPasswordForm').reset();
   $('#userPasswordMessage').textContent = '';
   $('#userPasswordModal').classList.remove('hidden');
@@ -615,7 +645,8 @@ $('#userPasswordForm').onsubmit = async event => {
   const currentPassword = $('#currentPasswordInput').value;
   const newPassword = $('#newUserPasswordInput').value;
   const confirmPassword = $('#confirmUserPasswordInput').value;
-  if (!user || user.passwordHash !== await hashPassword(currentPassword)) {
+  const verifyResult = passwordRecoveryMode ? { error: null } : await supabaseClient.auth.signInWithPassword({ email: user?.email || '', password: currentPassword });
+  if (!user || verifyResult.error) {
     $('#userPasswordMessage').textContent = '当前密码不正确。';
     return;
   }
@@ -627,8 +658,14 @@ $('#userPasswordForm').onsubmit = async event => {
     $('#userPasswordMessage').textContent = '两次输入的新密码不一致。';
     return;
   }
-  user.passwordHash = await hashPassword(newPassword);
-  saveUsers();
+  const { error: updateError } = await supabaseClient.auth.updateUser({ password: newPassword });
+  if (updateError) {
+    $('#userPasswordMessage').textContent = `修改失败：${updateError.message}`;
+    return;
+  }
+  passwordRecoveryMode = false;
+  $('#currentPasswordRow').classList.remove('hidden');
+  $('#currentPasswordInput').required = true;
   closeAccountModals();
   toast('登录密码已修改');
 };
@@ -687,17 +724,6 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('./sw.js').catch(error => console.warn('离线功能注册失败。', error));
 }
 
-window.addEventListener('storage', event => {
-  if (![USERS_KEY, SESSION_KEY, activeStateKey()].includes(event.key)) return;
-  users = loadUsers();
-  Object.values(users).forEach(user => user.status ??= 'active');
-  const sessionEmail = loadSession();
-  currentUserEmail = sessionEmail && users[sessionEmail]?.status !== 'disabled' ? sessionEmail : '';
-  if (!currentUserEmail && sessionEmail) localStorage.removeItem(SESSION_KEY);
-  state = normalizeState(loadState());
-  render();
-});
-
 function toast(message) {
   const element = $('#toast');
   element.textContent = message;
@@ -706,4 +732,27 @@ function toast(message) {
   window.toastTimer = setTimeout(() => element.classList.remove('show'), 2200);
 }
 
-render();
+async function initializeApp() {
+  render();
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session?.user) return;
+  try {
+    await loadCloudAccount(session.user);
+  } catch (error) {
+    showScreen('profileScreen');
+    showAuthMessage(error.message || '云端账户加载失败，请重新登录。');
+  }
+}
+
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT' && !session) clearCloudAccount();
+  if (event === 'PASSWORD_RECOVERY') {
+    passwordRecoveryMode = true;
+    showScreen('profileScreen');
+    $('#userPasswordModal').classList.remove('hidden');
+    $('#currentPasswordRow').classList.add('hidden');
+    $('#currentPasswordInput').required = false;
+  }
+});
+
+initializeApp();

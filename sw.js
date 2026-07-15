@@ -1,5 +1,5 @@
-const CACHE_NAME = 'summer-care-v7';
-const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './admin.html', './admin.css', './admin.js', './manifest.webmanifest', './icon.svg'];
+const CACHE_NAME = 'summer-care-v9';
+const APP_SHELL = ['./', './index.html', './styles.css', './supabase-config.js', './app.js', './admin.html', './admin.css', './admin.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));

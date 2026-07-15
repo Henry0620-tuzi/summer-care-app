@@ -94,6 +94,7 @@
           <label class="form-row">邮箱<input id="loginEmailInput" type="email" autocomplete="email" required placeholder="name@example.com" /></label>
           <label class="form-row">密码<input id="loginPasswordInput" type="password" autocomplete="current-password" minlength="6" required placeholder="请输入密码" /></label>
           <button class="auth-submit" type="submit">登录</button>
+          <button class="forgot-button" id="forgotPasswordBtn" type="button">忘记密码？发送重置邮件</button>
         </form>
 
         <form class="auth-form hidden" id="registerForm">
@@ -104,13 +105,13 @@
           <button class="auth-submit" type="submit">创建账户</button>
         </form>
         <p class="auth-message" id="authMessage" role="status"></p>
-        <p class="auth-note">当前为静态公开版，账户和密码校验仅保存在这台设备的浏览器中，不支持跨设备登录。</p>
+        <p class="auth-note">账户由 Supabase 安全认证，计划和积分会自动同步到云端。注册后请按邮件提示完成邮箱验证。</p>
       </section>
 
       <section class="account-card hidden" id="authUserView">
         <div class="account-hero"><div class="account-avatar" id="accountAvatar">满</div><div><strong id="accountName">小满</strong><span id="accountEmail">name@example.com</span></div><span class="login-badge">已登录</span></div>
         <div class="account-stats"><div><span>当前积分</span><strong id="accountPoints">280</strong></div><div><span>累计获得</span><strong id="accountEarned">340</strong></div><div><span>累计兑换</span><strong id="accountRedeemed">0</strong></div></div>
-        <div class="account-setting"><div><strong>数据存储</strong><small>计划、打卡与积分已关联到当前账户</small></div><span>本机</span></div>
+        <div class="account-setting"><div><strong>数据存储</strong><small>计划、打卡与积分已关联到当前账户</small></div><span>云端</span></div>
         <div class="account-tools">
           <button class="account-button" id="editProfileBtn" type="button">修改个人资料</button>
           <button class="account-button" id="changePasswordBtn" type="button">修改登录密码</button>
@@ -123,7 +124,7 @@
         <button class="account-button logout-button" id="logoutBtn" type="button">退出登录</button>
       </section>
 
-      <a class="admin-entry" href="admin.html"><span>🛡️</span><div><strong>管理员后台</strong><small>管理本机用户、状态与成长数据</small></div><b>›</b></a>
+      <a class="admin-entry hidden" id="adminEntry" href="admin.html"><span>🛡️</span><div><strong>管理员后台</strong><small>管理云端用户、状态与成长数据</small></div><b>›</b></a>
     </section>
 
     <nav class="bottom-nav" aria-label="主导航">
@@ -164,7 +165,7 @@
   <div class="modal-backdrop hidden" id="userPasswordModal" role="dialog" aria-modal="true" aria-labelledby="userPasswordTitle">
     <form class="task-modal" id="userPasswordForm">
       <div class="modal-heading"><h2 id="userPasswordTitle">修改登录密码</h2><button class="modal-close" id="closeUserPasswordBtn" type="button" aria-label="关闭">×</button></div>
-      <label class="form-row">当前密码<input id="currentPasswordInput" type="password" autocomplete="current-password" required /></label>
+      <label class="form-row" id="currentPasswordRow">当前密码<input id="currentPasswordInput" type="password" autocomplete="current-password" required /></label>
       <label class="form-row">新密码<input id="newUserPasswordInput" type="password" autocomplete="new-password" minlength="6" required placeholder="至少 6 位" /></label>
       <label class="form-row">确认新密码<input id="confirmUserPasswordInput" type="password" autocomplete="new-password" minlength="6" required /></label>
       <p class="auth-message" id="userPasswordMessage" role="status"></p>
@@ -172,6 +173,8 @@
     </form>
   </div>
   <div class="toast" id="toast"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
