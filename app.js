@@ -1,15 +1,446 @@
-const initialTasks=[{id:1,title:'晨读《昆虫记》',meta:'语文 · 20分钟',points:10,done:true},{id:2,title:'数学口算练习',meta:'数学 · 30道',points:15,done:true},{id:3,title:'英语单词打卡',meta:'英语 · Unit 3',points:10,done:true},{id:4,title:'跳绳运动',meta:'运动 · 20分钟',points:15,done:false},{id:5,title:'整理自己的书桌',meta:'生活 · 10分钟',points:10,done:false}];
-const rewards=[{icon:'🎨',name:'自由画画 30 分钟',cost:50,desc:'尽情画出你的想象'},{icon:'🍦',name:'冰淇淋一支',cost:80,desc:'夏天的小小甜蜜'},{icon:'🎮',name:'游戏时间 30 分钟',cost:120,desc:'完成计划才能兑换'},{icon:'📚',name:'想看的书一本',cost:200,desc:'去发现新的世界'}];
-let state=JSON.parse(localStorage.getItem('summerCareState')||'null')||{tasks:initialTasks,points:280};
-const $=s=>document.querySelector(s); const $$=s=>document.querySelectorAll(s);
-function save(){localStorage.setItem('summerCareState',JSON.stringify(state))}
-function renderTasks(){const done=state.tasks.filter(t=>t.done).length;$('#taskList').innerHTML=state.tasks.map(t=>`<div class="task-item ${t.done?'done':''}"><button class="check-button" data-task="${t.id}" aria-label="${t.done?'取消':'完成'}任务">✓</button><div class="task-main"><strong>${t.title}</strong><small>${t.meta}</small></div><span class="task-points">+${t.points}</span></div>`).join('');$('#progressText').textContent=`${done}/${state.tasks.length}`;$('#progressBar').style.width=`${done/state.tasks.length*100}%`;$('#progressHint').textContent=done===state.tasks.length?'太棒了，今日计划全部完成！':`还剩 ${state.tasks.length-done} 项，加油！`;$('#heroCaption').textContent=done===state.tasks.length?'今日计划已全部点亮，去领取你的奖励吧！':'完成今天的计划，就能点亮一颗星星';$$('[data-task]').forEach(b=>b.onclick=()=>toggleTask(Number(b.dataset.task)))}
-function toggleTask(id){const task=state.tasks.find(t=>t.id===id);if(!task)return;task.done=!task.done;state.points+=task.done?task.points:-task.points;save();render();toast(task.done?`完成「${task.title}」 +${task.points} 积分`:'已取消这项打卡')}
-function renderRewards(){const chips=rewards.slice(0,3).map(r=>`<div class="reward-chip"><div class="reward-art">${r.icon}</div><strong>${r.name}</strong><small>${r.cost} 积分</small></div>`).join('');$('#rewardStrip').innerHTML=chips;$('#rewardGrid').innerHTML=rewards.map(r=>`<div class="reward-card"><div class="reward-art">${r.icon}</div><strong>${r.name}</strong><p>${r.desc}</p><button data-reward="${r.cost}" ${state.points<r.cost?'disabled':''}>${state.points<r.cost?'积分不够':`兑换 · ${r.cost} 分`}</button></div>`).join('');$('#balanceText').textContent=state.points;$('#pointsText').textContent=state.points;$$('[data-reward]').forEach(b=>b.onclick=()=>redeem(Number(b.dataset.reward)))}
-function redeem(cost){if(state.points<cost)return;state.points-=cost;save();renderRewards();toast('兑换成功，记得找家长领取哦！')}
-function renderChart(){const values=[3,2,4,3,1,2,1];$('#barChart').innerHTML=values.map((v,i)=>`<div class="bar ${i===2?'today':''}" style="height:${v/4*100}%" data-value="${v}"></div>`).join('')}
-function render(){renderTasks();renderRewards();renderChart()}
-function showScreen(id){$$('.screen').forEach(s=>s.classList.toggle('hidden',s.id!==id));$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.screen===id));window.scrollTo({top:0,behavior:'smooth'})}
-function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>el.classList.remove('show'),2200)}
-$$('.nav-item[data-screen]').forEach(n=>n.onclick=()=>showScreen(n.dataset.screen));$('#viewAllRewardsBtn').onclick=()=>showScreen('rewardsScreen');$('#editPlanBtn').onclick=()=>toast('计划编辑功能即将开放，可以先完成今天的任务哦');$('#notifyBtn').onclick=()=>toast('今天 18:00 有一条待完成计划');$('#profileBtn').onclick=()=>toast('小满 · 暑假第 12 天');
+const initialPlans = {
+  today: [
+    { id: 1, title: '晨读《昆虫记》', meta: '语文 · 20分钟', points: 10, done: true },
+    { id: 2, title: '数学口算练习', meta: '数学 · 30道', points: 15, done: true },
+    { id: 3, title: '英语单词打卡', meta: '英语 · Unit 3', points: 10, done: true },
+    { id: 4, title: '跳绳运动', meta: '运动 · 20分钟', points: 15, done: false },
+    { id: 5, title: '整理自己的书桌', meta: '生活 · 10分钟', points: 10, done: false }
+  ],
+  tomorrow: [
+    { id: 6, title: '练习硬笔字', meta: '语文 · 2页', points: 10, done: false },
+    { id: 7, title: '科学小实验', meta: '科学 · 30分钟', points: 20, done: false },
+    { id: 8, title: '骑自行车', meta: '运动 · 30分钟', points: 15, done: false }
+  ],
+  later: [
+    { id: 9, title: '阅读英语绘本', meta: '英语 · 1本', points: 15, done: false },
+    { id: 10, title: '帮忙准备午餐', meta: '生活 · 20分钟', points: 15, done: false }
+  ]
+};
+
+const initialRewards = [
+  { id: 1, icon: '🎨', name: '自由画画 30 分钟', cost: 50, desc: '尽情画出你的想象' },
+  { id: 2, icon: '🍦', name: '冰淇淋一支', cost: 80, desc: '夏天的小小甜蜜' },
+  { id: 3, icon: '🎮', name: '游戏时间 30 分钟', cost: 120, desc: '完成计划才能兑换' },
+  { id: 4, icon: '📚', name: '想看的书一本', cost: 200, desc: '去发现新的世界' }
+];
+
+const $ = selector => document.querySelector(selector);
+const $$ = selector => document.querySelectorAll(selector);
+const clone = value => JSON.parse(JSON.stringify(value));
+
+function freshState() {
+  return {
+    points: 280,
+    totalEarned: 340,
+    selectedDay: 'today',
+    plans: clone(initialPlans),
+    rewards: clone(initialRewards),
+    history: [3, 2, 3, 3, 1, 2, 1],
+    redeemed: 0,
+    transactions: [
+      { id: 3, amount: 10, label: '完成「英语单词打卡」', time: '今天 09:20' },
+      { id: 2, amount: 15, label: '完成「数学口算练习」', time: '今天 08:55' },
+      { id: 1, amount: 10, label: '完成「晨读《昆虫记》」', time: '今天 08:20' }
+    ]
+  };
+}
+
+function loadState() {
+  try {
+    const current = JSON.parse(localStorage.getItem('summerCareStateV2') || 'null');
+    if (current) return current;
+    const legacy = JSON.parse(localStorage.getItem('summerCareState') || 'null');
+    if (legacy?.tasks) {
+      const migrated = freshState();
+      migrated.points = Number(legacy.points) || migrated.points;
+      migrated.plans.today = legacy.tasks;
+      migrated.history[(new Date().getDay() + 6) % 7] = legacy.tasks.filter(task => task.done).length;
+      return migrated;
+    }
+  } catch (error) {
+    console.warn('本地数据读取失败，已使用默认数据。', error);
+  }
+  return freshState();
+}
+
+let state = loadState();
+state.totalEarned ??= 340;
+state.redeemed ??= 0;
+state.rewards = (state.rewards || clone(initialRewards)).map((reward, index) => ({ id: reward.id || index + 1, ...reward }));
+state.transactions ??= [];
+state.history ??= [3, 2, 3, 3, 1, 2, 1];
+state.plans ??= clone(initialPlans);
+state.selectedDay ??= 'today';
+
+let editingTask = null;
+let editingReward = null;
+
+function save() {
+  localStorage.setItem('summerCareStateV2', JSON.stringify(state));
+}
+
+function safe(text) {
+  const element = document.createElement('div');
+  element.textContent = String(text);
+  return element.innerHTML;
+}
+
+function getDayInfo(day) {
+  const offsets = { today: 0, tomorrow: 1, later: 2 };
+  const names = { today: '今天', tomorrow: '明天', later: '后天' };
+  const date = new Date();
+  date.setDate(date.getDate() + offsets[day]);
+  const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+  const english = `${month} ${date.getDate()} · ${weekday}`;
+  return { name: names[day], date, english };
+}
+
+function todayHistoryIndex() {
+  return (new Date().getDay() + 6) % 7;
+}
+
+state.history[todayHistoryIndex()] = (state.plans.today || []).filter(task => task.done).length;
+
+function formatGreetingDate() {
+  const date = new Date();
+  const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  return `${weekdays[date.getDay()]} · ${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+function currentPlans() {
+  return state.plans[state.selectedDay] || [];
+}
+
+function totalTasks() {
+  return Object.values(state.plans).flat();
+}
+
+function findTask(id) {
+  for (const [day, tasks] of Object.entries(state.plans)) {
+    const task = tasks.find(item => item.id === id);
+    if (task) return { task, day };
+  }
+}
+
+function findReward(id) {
+  return state.rewards.find(reward => reward.id === id);
+}
+
+function addTransaction(amount, label) {
+  const now = new Date();
+  state.transactions.unshift({
+    id: Date.now(),
+    amount,
+    label,
+    time: `今天 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  });
+  state.transactions = state.transactions.slice(0, 30);
+}
+
+function renderTasks() {
+  const tasks = currentPlans();
+  const done = tasks.filter(task => task.done).length;
+  const dayInfo = getDayInfo(state.selectedDay);
+  $('#taskList').innerHTML = tasks.length
+    ? tasks.map(task => `<div class="task-item ${task.done ? 'done' : ''}">
+        <button class="check-button" data-task="${task.id}" aria-label="${task.done ? '取消' : '完成'}任务">✓</button>
+        <button class="task-main" data-edit="${task.id}" aria-label="编辑 ${safe(task.title)}"><strong>${safe(task.title)}</strong><small>${safe(task.meta)}</small></button>
+        <span class="task-points">+${task.points}</span>
+      </div>`).join('')
+    : '<div class="empty-state">这一天还没有计划，点击“新增”安排一下吧。</div>';
+
+  $('#progressText').textContent = `${done}/${tasks.length}`;
+  $('#progressBar').style.width = `${tasks.length ? done / tasks.length * 100 : 0}%`;
+  $('#progressHint').textContent = !tasks.length ? '先添加一项小计划吧' : done === tasks.length ? '太棒了，这天的计划全部完成！' : `还剩 ${tasks.length - done} 项，加油！`;
+  $('#heroCaption').textContent = done === tasks.length && tasks.length ? '计划已全部点亮，去领取你的奖励吧！' : '完成计划，就能点亮一颗星星';
+  $('#planDateLabel').textContent = dayInfo.english;
+  $('#planTitle').textContent = `${dayInfo.name}的计划`;
+  $('#growthLabel').textContent = `${dayInfo.name}成长`;
+  $('#progressLabel').textContent = `${dayInfo.name}进度`;
+  $('#completeDayBtn').disabled = !tasks.some(task => !task.done);
+  $('#completeDayBtn').textContent = tasks.length && tasks.every(task => task.done) ? '已完成' : '全部完成';
+  $$('.day-button').forEach(button => button.classList.toggle('active', button.dataset.day === state.selectedDay));
+  $$('[data-task]').forEach(button => button.onclick = () => toggleTask(Number(button.dataset.task)));
+  $$('[data-edit]').forEach(button => button.onclick = () => openTaskModal(Number(button.dataset.edit)));
+}
+
+function toggleTask(id) {
+  const found = findTask(id);
+  if (!found) return;
+  const { task, day } = found;
+  if (task.done && state.points < task.points) {
+    toast('这项积分已经使用，暂时不能取消打卡');
+    return;
+  }
+  task.done = !task.done;
+  const change = task.done ? task.points : -task.points;
+  state.points += change;
+  state.totalEarned += change;
+  const todayIndex = todayHistoryIndex();
+  if (day === 'today') state.history[todayIndex] = Math.max(0, (state.history[todayIndex] || 0) + (task.done ? 1 : -1));
+  addTransaction(change, `${task.done ? '完成' : '取消'}「${task.title}」`);
+  save();
+  render();
+  toast(task.done ? `完成「${task.title}」 +${task.points} 积分` : '已取消这项打卡');
+}
+
+function renderRewards() {
+  $('#rewardStrip').innerHTML = state.rewards.slice(0, 3).map(reward => `<div class="reward-chip"><div class="reward-art">${safe(reward.icon)}</div><strong>${safe(reward.name)}</strong><small>${reward.cost} 积分</small></div>`).join('');
+  $('#rewardGrid').innerHTML = state.rewards.length
+    ? state.rewards.map(reward => `<div class="reward-card">
+        <button class="reward-edit" data-reward-edit="${reward.id}" aria-label="编辑 ${safe(reward.name)}">···</button>
+        <div class="reward-art">${safe(reward.icon)}</div><strong>${safe(reward.name)}</strong><p>${safe(reward.desc)}</p>
+        <button data-reward="${reward.id}" ${state.points < reward.cost ? 'disabled' : ''}>${state.points < reward.cost ? `还差 ${reward.cost - state.points} 分` : `兑换 · ${reward.cost} 分`}</button>
+      </div>`).join('')
+    : '<div class="empty-state reward-empty">还没有奖励，先新增一个期待吧。</div>';
+  $('#balanceText').textContent = state.points;
+  $('#pointsText').textContent = state.points;
+  $('#earnedText').textContent = `本月已获得 ${state.totalEarned}`;
+  $('#weekPoints').textContent = `本周 +${Math.max(0, state.history.reduce((sum, value) => sum + value, 0) * 10)}`;
+  $$('[data-reward]').forEach(button => button.onclick = () => redeem(Number(button.dataset.reward)));
+  $$('[data-reward-edit]').forEach(button => button.onclick = () => openRewardModal(Number(button.dataset.rewardEdit)));
+}
+
+function redeem(id) {
+  const reward = findReward(id);
+  if (!reward || state.points < reward.cost) return;
+  state.points -= reward.cost;
+  state.redeemed += reward.cost;
+  addTransaction(-reward.cost, `兑换「${reward.name}」`);
+  save();
+  render();
+  toast(`已兑换「${reward.name}」，记得找家长领取哦！`);
+}
+
+function renderHistory() {
+  $('#pointsHistory').innerHTML = state.transactions.length
+    ? state.transactions.slice(0, 8).map(item => `<div class="history-item"><div><strong>${safe(item.label)}</strong><small>${safe(item.time)}</small></div><span class="${item.amount >= 0 ? 'income' : 'expense'}">${item.amount >= 0 ? '+' : ''}${item.amount}</span></div>`).join('')
+    : '<div class="empty-state">完成计划或兑换奖励后，这里会出现积分记录。</div>';
+}
+
+function renderChart() {
+  const values = state.history;
+  const completed = values.reduce((sum, value) => sum + value, 0);
+  const planned = Math.max(completed + 6, 22);
+  const max = Math.max(...values, 4);
+  $('#barChart').innerHTML = values.map((value, index) => `<div class="bar ${index === todayHistoryIndex() ? 'today' : ''}" style="height:${Math.max(8, value / max * 100)}%" data-value="${value}"></div>`).join('');
+  $('#weekTotal').textContent = `${completed} / ${planned} 项`;
+  $('#completedTotal').innerHTML = `${completed}<span>项</span>`;
+  $('#studyTime').innerHTML = `${(completed * 0.55).toFixed(1)}<span>h</span>`;
+  $('#streakText').innerHTML = `${Math.max(1, Math.min(14, completed ? 7 : 1))} <em>天</em>`;
+}
+
+function render() {
+  $('#greetingDate').textContent = formatGreetingDate();
+  renderTasks();
+  renderRewards();
+  renderHistory();
+  renderChart();
+}
+
+function showScreen(id) {
+  $$('.screen').forEach(screen => screen.classList.toggle('hidden', screen.id !== id));
+  $$('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.screen === id));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openTaskModal(id) {
+  const found = id ? findTask(id) : null;
+  editingTask = found ? { id, day: found.day } : null;
+  const task = found?.task;
+  $('#modalTitle').textContent = task ? '编辑计划' : '新增计划';
+  $('#taskNameInput').value = task?.title || '';
+  $('#taskMetaInput').value = task?.meta || '';
+  $('#taskPointsInput').value = task?.points || 10;
+  $('#taskDayInput').value = found?.day || state.selectedDay;
+  $('#deleteTaskBtn').classList.toggle('hidden', !task);
+  $('#taskModal').classList.remove('hidden');
+  $('#taskNameInput').focus();
+}
+
+function closeTaskModal() {
+  $('#taskModal').classList.add('hidden');
+  editingTask = null;
+}
+
+function nextTaskId() {
+  return Math.max(0, ...totalTasks().map(task => task.id)) + 1;
+}
+
+function completeSelectedDay() {
+  const pending = currentPlans().filter(task => !task.done);
+  if (!pending.length) return;
+  const gained = pending.reduce((sum, task) => sum + task.points, 0);
+  pending.forEach(task => task.done = true);
+  state.points += gained;
+  state.totalEarned += gained;
+  const todayIndex = todayHistoryIndex();
+  if (state.selectedDay === 'today') state.history[todayIndex] = (state.history[todayIndex] || 0) + pending.length;
+  addTransaction(gained, `完成${getDayInfo(state.selectedDay).name}全部计划`);
+  save();
+  render();
+  toast(`全部完成！获得 ${gained} 积分`);
+}
+
+function openRewardModal(id) {
+  const reward = id ? findReward(id) : null;
+  editingReward = reward ? id : null;
+  $('#rewardModalTitle').textContent = reward ? '编辑奖励' : '新增奖励';
+  $('#rewardIconInput').value = reward?.icon || '';
+  $('#rewardNameInput').value = reward?.name || '';
+  $('#rewardDescInput').value = reward?.desc || '';
+  $('#rewardCostInput').value = reward?.cost || 50;
+  $('#deleteRewardBtn').classList.toggle('hidden', !reward);
+  $('#rewardModal').classList.remove('hidden');
+  $('#rewardIconInput').focus();
+}
+
+function closeRewardModal() {
+  $('#rewardModal').classList.add('hidden');
+  editingReward = null;
+}
+
+function nextRewardId() {
+  return Math.max(0, ...state.rewards.map(reward => reward.id)) + 1;
+}
+
+$('#taskForm').onsubmit = event => {
+  event.preventDefault();
+  const title = $('#taskNameInput').value.trim();
+  const meta = $('#taskMetaInput').value.trim();
+  const points = Number($('#taskPointsInput').value);
+  const day = $('#taskDayInput').value;
+  const wasEditing = Boolean(editingTask);
+  if (!title || !meta || !points) return;
+
+  if (editingTask) {
+    const found = findTask(editingTask.id);
+    const oldPoints = found.task.points;
+    const oldDay = found.day;
+    if (found.task.done && oldPoints !== points) {
+      const difference = points - oldPoints;
+      if (state.points + difference < 0) {
+        toast('积分已经使用，不能把这项积分调得更低');
+        return;
+      }
+      state.points += difference;
+      state.totalEarned += difference;
+      addTransaction(difference, `调整「${title}」积分`);
+    }
+    Object.assign(found.task, { title, meta, points });
+    if (oldDay !== day) {
+      state.plans[oldDay] = state.plans[oldDay].filter(task => task.id !== found.task.id);
+      state.plans[day].push(found.task);
+      if (found.task.done) {
+        const todayIndex = todayHistoryIndex();
+        if (oldDay === 'today') state.history[todayIndex] = Math.max(0, state.history[todayIndex] - 1);
+        if (day === 'today') state.history[todayIndex] += 1;
+      }
+    }
+  } else {
+    state.plans[day].push({ id: nextTaskId(), title, meta, points, done: false });
+  }
+  state.selectedDay = day;
+  save();
+  closeTaskModal();
+  render();
+  toast(wasEditing ? '计划已更新' : '已添加新的计划');
+};
+
+$('#deleteTaskBtn').onclick = () => {
+  if (!editingTask) return;
+  const found = findTask(editingTask.id);
+  if (found.task.done) {
+    if (state.points < found.task.points) {
+      toast('积分已经使用，暂时不能删除这项计划');
+      return;
+    }
+    state.points -= found.task.points;
+    state.totalEarned -= found.task.points;
+    const todayIndex = todayHistoryIndex();
+    if (found.day === 'today') state.history[todayIndex] = Math.max(0, state.history[todayIndex] - 1);
+    addTransaction(-found.task.points, `删除已完成计划「${found.task.title}」`);
+  }
+  state.plans[found.day] = state.plans[found.day].filter(task => task.id !== editingTask.id);
+  save();
+  closeTaskModal();
+  render();
+  toast('计划已删除');
+};
+
+$('#rewardForm').onsubmit = event => {
+  event.preventDefault();
+  const icon = $('#rewardIconInput').value.trim();
+  const name = $('#rewardNameInput').value.trim();
+  const desc = $('#rewardDescInput').value.trim();
+  const cost = Number($('#rewardCostInput').value);
+  const wasEditing = Boolean(editingReward);
+  if (!icon || !name || !desc || !cost) return;
+  if (editingReward) Object.assign(findReward(editingReward), { icon, name, desc, cost });
+  else state.rewards.push({ id: nextRewardId(), icon, name, desc, cost });
+  save();
+  closeRewardModal();
+  render();
+  toast(wasEditing ? '奖励已更新' : '已添加新的奖励');
+};
+
+$('#deleteRewardBtn').onclick = () => {
+  if (!editingReward) return;
+  state.rewards = state.rewards.filter(reward => reward.id !== editingReward);
+  save();
+  closeRewardModal();
+  render();
+  toast('奖励已删除');
+};
+
+$$('.day-button').forEach(button => button.onclick = () => {
+  state.selectedDay = button.dataset.day;
+  save();
+  renderTasks();
+});
+$$('.nav-item[data-screen]').forEach(item => item.onclick = () => showScreen(item.dataset.screen));
+$('#viewAllRewardsBtn').onclick = () => showScreen('rewardsScreen');
+$('#addTaskBtn').onclick = () => openTaskModal();
+$('#completeDayBtn').onclick = completeSelectedDay;
+$('#closeModalBtn').onclick = closeTaskModal;
+$('#taskModal').onclick = event => { if (event.target === event.currentTarget) closeTaskModal(); };
+$('#addRewardBtn').onclick = () => openRewardModal();
+$('#closeRewardModalBtn').onclick = closeRewardModal;
+$('#rewardModal').onclick = event => { if (event.target === event.currentTarget) closeRewardModal(); };
+$('#notifyBtn').onclick = () => toast('今天 18:00 有一条待完成计划');
+$('#profileBtn').onclick = () => {
+  $('#totalEarnedText').textContent = state.totalEarned;
+  $('#totalRedeemedText').textContent = state.redeemed;
+  $('#profileModal').classList.remove('hidden');
+};
+$('#closeProfileBtn').onclick = () => $('#profileModal').classList.add('hidden');
+$('#profileModal').onclick = event => { if (event.target === event.currentTarget) $('#profileModal').classList.add('hidden'); };
+$('#resetDataBtn').onclick = () => {
+  state = freshState();
+  save();
+  $('#profileModal').classList.add('hidden');
+  render();
+  toast('已恢复示例数据');
+};
+
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  closeTaskModal();
+  closeRewardModal();
+  $('#profileModal').classList.add('hidden');
+});
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('./sw.js').catch(error => console.warn('离线功能注册失败。', error));
+}
+
+function toast(message) {
+  const element = $('#toast');
+  element.textContent = message;
+  element.classList.add('show');
+  clearTimeout(window.toastTimer);
+  window.toastTimer = setTimeout(() => element.classList.remove('show'), 2200);
+}
+
 render();

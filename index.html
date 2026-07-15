@@ -4,7 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#f7f5ef" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>小树暑托 · 暑假成长计划</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -20,7 +24,7 @@
     <section class="screen" id="homeScreen">
       <div class="greeting-row">
         <div>
-          <p class="eyebrow">星期三 · 7月15日</p>
+          <p class="eyebrow" id="greetingDate">星期三 · 7月15日</p>
           <h1>早上好，<span>小满</span></h1>
         </div>
         <div class="avatar">满</div>
@@ -28,7 +32,7 @@
 
       <section class="hero-card">
         <div class="hero-copy">
-          <span class="pill orange-pill">今日成长</span>
+          <span class="pill orange-pill" id="growthLabel">今日成长</span>
           <h2>一步一步，<br />把暑假过成自己的作品。</h2>
           <p id="heroCaption">完成今天的计划，就能点亮一颗星星</p>
         </div>
@@ -37,17 +41,22 @@
 
       <section class="overview-grid">
         <div class="stat-card progress-stat">
-          <div class="stat-top"><span>今日进度</span><strong id="progressText">3/5</strong></div>
+          <div class="stat-top"><span id="progressLabel">今日进度</span><strong id="progressText">3/5</strong></div>
           <div class="progress-track"><span id="progressBar"></span></div>
           <small id="progressHint">还剩 2 项，加油！</small>
         </div>
         <div class="stat-card points-stat">
           <div class="stat-top"><span>成长积分</span><strong id="pointsText">280</strong></div>
-          <div class="points-row"><span class="coin">✦</span><small>本周 +60</small></div>
+          <div class="points-row"><span class="coin">✦</span><small id="weekPoints">本周 +60</small></div>
         </div>
       </section>
 
-      <section class="section-heading"><div><p class="eyebrow">JUL 15 · WED</p><h3>今天的计划</h3></div><button class="text-button" id="editPlanBtn">编辑</button></section>
+      <section class="section-heading"><div><p class="eyebrow" id="planDateLabel">JUL 15 · WED</p><h3 id="planTitle">今天的计划</h3></div><div class="plan-actions"><button class="text-button" id="completeDayBtn">全部完成</button><button class="text-button" id="addTaskBtn">+ 新增</button></div></section>
+      <div class="day-switcher" id="daySwitcher" aria-label="计划日期切换">
+        <button class="day-button active" data-day="today">今天</button>
+        <button class="day-button" data-day="tomorrow">明天</button>
+        <button class="day-button" data-day="later">后天</button>
+      </div>
       <div class="task-list" id="taskList"></div>
 
       <section class="section-heading rewards-heading"><div><p class="eyebrow">KEEP GOING</p><h3>想要兑换什么？</h3></div><button class="text-button" id="viewAllRewardsBtn">全部奖励</button></section>
@@ -56,17 +65,19 @@
 
     <section class="screen hidden" id="statsScreen">
       <div class="page-title"><p class="eyebrow">YOUR SUMMER</p><h1>成长统计</h1><p>每一次完成，都会变成看得见的进步。</p></div>
-      <div class="streak-card"><div><span class="pill green-pill">连续打卡</span><strong>7 <em>天</em></strong><p>保持这个节奏，暑假会很不一样</p></div><div class="streak-spark">✦</div></div>
-      <section class="chart-card"><div class="card-heading"><div><span class="eyebrow">THIS WEEK</span><h3>本周完成情况</h3></div><span class="week-total">16 / 22 项</span></div><div class="bar-chart" id="barChart"></div><div class="chart-labels"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div></section>
-      <section class="mini-stats"><div><span>学习时长</span><strong>12.5<span>h</span></strong><small>较上周 +2.5h</small></div><div><span>完成任务</span><strong>16<span>项</span></strong><small>超过 82% 的小伙伴</small></div></section>
+      <div class="streak-card"><div><span class="pill green-pill">连续打卡</span><strong id="streakText">7 <em>天</em></strong><p>保持这个节奏，暑假会很不一样</p></div><div class="streak-spark">✦</div></div>
+      <section class="chart-card"><div class="card-heading"><div><span class="eyebrow">THIS WEEK</span><h3>本周完成情况</h3></div><span class="week-total" id="weekTotal">16 / 22 项</span></div><div class="bar-chart" id="barChart"></div><div class="chart-labels"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div></section>
+      <section class="mini-stats"><div><span>学习时长</span><strong id="studyTime">12.5<span>h</span></strong><small>较上周 +2.5h</small></div><div><span>完成任务</span><strong id="completedTotal">16<span>项</span></strong><small>超过 82% 的小伙伴</small></div></section>
       <section class="insight-card"><div class="insight-icon">☼</div><div><strong>你的专属小发现</strong><p>上午 9:00—10:00 是你的高效时间，数学和阅读都完成得最好！</p></div></section>
     </section>
 
     <section class="screen hidden" id="rewardsScreen">
       <div class="page-title"><p class="eyebrow">LITTLE WINS</p><h1>积分奖励</h1><p>把努力存起来，换成喜欢的东西。</p></div>
-      <div class="balance-card"><div><span>我的积分</span><strong id="balanceText">280</strong></div><div class="balance-star">✦</div><div class="balance-bottom"><span>本月已获得 240</span><span>即将过期 0</span></div></div>
-      <section class="section-heading rewards-heading"><div><p class="eyebrow">REDEEM</p><h3>可以兑换</h3></div></section>
+      <div class="balance-card"><div><span>我的积分</span><strong id="balanceText">280</strong></div><div class="balance-star">✦</div><div class="balance-bottom"><span id="earnedText">本月已获得 240</span><span>即将过期 0</span></div></div>
+      <section class="section-heading rewards-heading"><div><p class="eyebrow">REDEEM</p><h3>可以兑换</h3></div><button class="text-button" id="addRewardBtn">+ 新增奖励</button></section>
       <div class="reward-grid" id="rewardGrid"></div>
+      <section class="section-heading history-heading"><div><p class="eyebrow">POINTS LOG</p><h3>积分记录</h3></div></section>
+      <div class="points-history" id="pointsHistory"></div>
     </section>
 
     <nav class="bottom-nav" aria-label="主导航">
@@ -76,6 +87,35 @@
       <button class="nav-item" id="profileBtn"><span>◌</span><small>我的</small></button>
     </nav>
   </main>
+  <div class="modal-backdrop hidden" id="taskModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <form class="task-modal" id="taskForm">
+      <div class="modal-heading"><h2 id="modalTitle">新增计划</h2><button class="modal-close" id="closeModalBtn" type="button" aria-label="关闭">×</button></div>
+      <label class="form-row">计划内容<input id="taskNameInput" required maxlength="30" placeholder="例如：阅读 20 分钟" /></label>
+      <label class="form-row">学习分类 / 要求<input id="taskMetaInput" required maxlength="40" placeholder="例如：语文 · 20分钟" /></label>
+      <label class="form-row">完成积分<input id="taskPointsInput" type="number" min="1" max="100" value="10" required /></label>
+      <label class="form-row">安排日期<select id="taskDayInput"><option value="today">今天</option><option value="tomorrow">明天</option><option value="later">后天</option></select></label>
+      <div class="modal-actions"><button class="danger-button hidden" id="deleteTaskBtn" type="button">删除</button><button class="save-button" type="submit">保存计划</button></div>
+    </form>
+  </div>
+  <div class="modal-backdrop hidden" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+    <section class="task-modal profile-modal">
+      <div class="modal-heading"><h2 id="profileTitle">小满的暑托</h2><button class="modal-close" id="closeProfileBtn" type="button" aria-label="关闭">×</button></div>
+      <p class="profile-copy">所有计划、打卡和积分都保存在这台设备中。</p>
+      <div class="profile-summary"><span>累计获得积分</span><strong id="totalEarnedText">340</strong></div>
+      <div class="profile-summary secondary-summary"><span>累计兑换积分</span><strong id="totalRedeemedText">0</strong></div>
+      <button class="reset-button" id="resetDataBtn" type="button">恢复示例数据</button>
+    </section>
+  </div>
+  <div class="modal-backdrop hidden" id="rewardModal" role="dialog" aria-modal="true" aria-labelledby="rewardModalTitle">
+    <form class="task-modal" id="rewardForm">
+      <div class="modal-heading"><h2 id="rewardModalTitle">新增奖励</h2><button class="modal-close" id="closeRewardModalBtn" type="button" aria-label="关闭">×</button></div>
+      <label class="form-row">奖励图标<input id="rewardIconInput" required maxlength="4" placeholder="例如：🎨" /></label>
+      <label class="form-row">奖励名称<input id="rewardNameInput" required maxlength="30" placeholder="例如：看动画 30 分钟" /></label>
+      <label class="form-row">奖励说明<input id="rewardDescInput" required maxlength="40" placeholder="例如：完成计划后的放松时间" /></label>
+      <label class="form-row">所需积分<input id="rewardCostInput" type="number" min="1" max="9999" value="50" required /></label>
+      <div class="modal-actions"><button class="danger-button hidden" id="deleteRewardBtn" type="button">删除</button><button class="save-button" type="submit">保存奖励</button></div>
+    </form>
+  </div>
   <div class="toast" id="toast"></div>
   <script src="app.js"></script>
 </body>

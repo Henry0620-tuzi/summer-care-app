@@ -1,0 +1,19 @@
+{
+  "name": "小树暑托 · 暑假成长计划",
+  "short_name": "小树暑托",
+  "description": "用计划、打卡、统计和积分奖励管理孩子的暑假生活。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f5ef",
+  "theme_color": "#527e66",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
