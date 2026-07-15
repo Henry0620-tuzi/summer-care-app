@@ -51,6 +51,18 @@ function saveUserState(email, value) {
   localStorage.setItem(`${USER_STATE_PREFIX}${email}`, JSON.stringify(value));
 }
 
+function downloadJson(filename, value) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function freshUserState() {
   return {
     points: 280, totalEarned: 340, selectedDay: 'today', redeemed: 0,
@@ -165,6 +177,16 @@ $('#adminAuthForm').onsubmit = async event => {
 
 $('#userSearchInput').oninput = renderUsers;
 $('#statusFilter').onchange = renderUsers;
+$('#exportUsersBtn').onclick = () => {
+  users = loadJson(USERS_KEY, {});
+  const exportedUsers = Object.entries(users).map(([email, user]) => ({
+    profile: { name: user.name, email, status: user.status || 'active', createdAt: user.createdAt, lastLoginAt: user.lastLoginAt },
+    state: userState(email)
+  }));
+  const date = new Date().toISOString().slice(0, 10);
+  downloadJson(`小树暑托-用户数据-${date}.json`, { app: 'summer-care-admin', version: 1, exportedAt: new Date().toISOString(), users: exportedUsers });
+  toast(`已导出 ${exportedUsers.length} 位用户的数据`);
+};
 $('#closeUserModalBtn').onclick = closeUserModal;
 $('#userModal').onclick = event => { if (event.target === event.currentTarget) closeUserModal(); };
 $('#userEditForm').onsubmit = event => {

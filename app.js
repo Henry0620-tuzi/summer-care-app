@@ -149,6 +149,32 @@ function safe(text) {
   return element.innerHTML;
 }
 
+function downloadJson(filename, value) {
+  const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function closeAccountModals() {
+  $('#profileEditModal').classList.add('hidden');
+  $('#userPasswordModal').classList.add('hidden');
+  $('#userPasswordMessage').textContent = '';
+}
+
+function weeklyReportText() {
+  const user = currentUser();
+  const completed = state.history.reduce((sum, value) => sum + value, 0);
+  const todayDone = (state.plans.today || []).filter(task => task.done).length;
+  const todayTotal = (state.plans.today || []).length;
+  return `🌱 ${user?.name || '小满'}的暑假成长周报\n本周完成 ${completed} 项计划\n今天进度 ${todayDone}/${todayTotal}\n当前成长积分 ${state.points}\n累计获得 ${state.totalEarned} 分\n一步一步，把暑假过成自己的作品。`;
+}
+
 function getDayInfo(day) {
   const offsets = { today: 0, tomorrow: 1, later: 2 };
   const names = { today: '今天', tomorrow: '明天', later: '后天' };
@@ -556,6 +582,93 @@ $('#logoutBtn').onclick = () => {
   setAuthTab('login');
   toast(`${name}已退出登录`);
 };
+$('#editProfileBtn').onclick = () => {
+  const user = currentUser();
+  if (!user) return;
+  $('#profileNameInput').value = user.name;
+  $('#profileEmailInput').value = user.email;
+  $('#profileEditModal').classList.remove('hidden');
+};
+$('#closeProfileEditBtn').onclick = closeAccountModals;
+$('#profileEditModal').onclick = event => { if (event.target === event.currentTarget) closeAccountModals(); };
+$('#profileEditForm').onsubmit = event => {
+  event.preventDefault();
+  const user = currentUser();
+  const name = $('#profileNameInput').value.trim();
+  if (!user || !name) return;
+  user.name = name;
+  saveUsers();
+  closeAccountModals();
+  render();
+  toast('个人资料已更新');
+};
+$('#changePasswordBtn').onclick = () => {
+  $('#userPasswordForm').reset();
+  $('#userPasswordMessage').textContent = '';
+  $('#userPasswordModal').classList.remove('hidden');
+};
+$('#closeUserPasswordBtn').onclick = closeAccountModals;
+$('#userPasswordModal').onclick = event => { if (event.target === event.currentTarget) closeAccountModals(); };
+$('#userPasswordForm').onsubmit = async event => {
+  event.preventDefault();
+  const user = currentUser();
+  const currentPassword = $('#currentPasswordInput').value;
+  const newPassword = $('#newUserPasswordInput').value;
+  const confirmPassword = $('#confirmUserPasswordInput').value;
+  if (!user || user.passwordHash !== await hashPassword(currentPassword)) {
+    $('#userPasswordMessage').textContent = '当前密码不正确。';
+    return;
+  }
+  if (newPassword.length < 6) {
+    $('#userPasswordMessage').textContent = '新密码至少需要 6 位。';
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    $('#userPasswordMessage').textContent = '两次输入的新密码不一致。';
+    return;
+  }
+  user.passwordHash = await hashPassword(newPassword);
+  saveUsers();
+  closeAccountModals();
+  toast('登录密码已修改');
+};
+$('#shareReportBtn').onclick = async () => {
+  const text = weeklyReportText();
+  try {
+    if (navigator.share) await navigator.share({ title: '小树暑托成长周报', text });
+    else {
+      await navigator.clipboard.writeText(text);
+      toast('成长周报已复制，可以发送给家人');
+    }
+  } catch (error) {
+    if (error.name !== 'AbortError') toast('分享未完成，请稍后再试');
+  }
+};
+$('#exportDataBtn').onclick = () => {
+  const user = currentUser();
+  if (!user) return;
+  const date = new Date().toISOString().slice(0, 10);
+  downloadJson(`小树暑托-${user.name}-${date}.json`, { app: 'summer-care-app', version: 1, exportedAt: new Date().toISOString(), user: { name: user.name, email: user.email }, state });
+  toast('备份文件已导出');
+};
+$('#importDataBtn').onclick = () => $('#importDataInput').click();
+$('#importDataInput').onchange = async event => {
+  const file = event.target.files?.[0];
+  const user = currentUser();
+  if (!file || !user) return;
+  try {
+    const backup = JSON.parse(await file.text());
+    if (backup.app !== 'summer-care-app' || backup.user?.email !== user.email || !backup.state?.plans || !Array.isArray(backup.state?.history)) throw new Error('invalid');
+    state = normalizeState(backup.state);
+    save();
+    render();
+    toast('备份数据已恢复');
+  } catch (error) {
+    toast('备份文件无效，或不属于当前账户');
+  } finally {
+    event.target.value = '';
+  }
+};
 $('#resetDataBtn').onclick = () => {
   state = freshState();
   save();
@@ -567,6 +680,7 @@ document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
   closeTaskModal();
   closeRewardModal();
+  closeAccountModals();
 });
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

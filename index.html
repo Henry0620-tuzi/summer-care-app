@@ -111,6 +111,14 @@
         <div class="account-hero"><div class="account-avatar" id="accountAvatar">满</div><div><strong id="accountName">小满</strong><span id="accountEmail">name@example.com</span></div><span class="login-badge">已登录</span></div>
         <div class="account-stats"><div><span>当前积分</span><strong id="accountPoints">280</strong></div><div><span>累计获得</span><strong id="accountEarned">340</strong></div><div><span>累计兑换</span><strong id="accountRedeemed">0</strong></div></div>
         <div class="account-setting"><div><strong>数据存储</strong><small>计划、打卡与积分已关联到当前账户</small></div><span>本机</span></div>
+        <div class="account-tools">
+          <button class="account-button" id="editProfileBtn" type="button">修改个人资料</button>
+          <button class="account-button" id="changePasswordBtn" type="button">修改登录密码</button>
+          <button class="account-button" id="shareReportBtn" type="button">分享本周成长报告</button>
+          <button class="account-button" id="exportDataBtn" type="button">导出我的数据</button>
+          <button class="account-button" id="importDataBtn" type="button">恢复备份数据</button>
+          <input class="hidden" id="importDataInput" type="file" accept="application/json,.json" />
+        </div>
         <button class="account-button" id="resetDataBtn" type="button">恢复示例数据</button>
         <button class="account-button logout-button" id="logoutBtn" type="button">退出登录</button>
       </section>
@@ -143,6 +151,24 @@
       <label class="form-row">奖励说明<input id="rewardDescInput" required maxlength="40" placeholder="例如：完成计划后的放松时间" /></label>
       <label class="form-row">所需积分<input id="rewardCostInput" type="number" min="1" max="9999" value="50" required /></label>
       <div class="modal-actions"><button class="danger-button hidden" id="deleteRewardBtn" type="button">删除</button><button class="save-button" type="submit">保存奖励</button></div>
+    </form>
+  </div>
+  <div class="modal-backdrop hidden" id="profileEditModal" role="dialog" aria-modal="true" aria-labelledby="profileEditTitle">
+    <form class="task-modal" id="profileEditForm">
+      <div class="modal-heading"><h2 id="profileEditTitle">修改个人资料</h2><button class="modal-close" id="closeProfileEditBtn" type="button" aria-label="关闭">×</button></div>
+      <label class="form-row">孩子昵称<input id="profileNameInput" required maxlength="12" placeholder="请输入昵称" /></label>
+      <label class="form-row">登录邮箱<input id="profileEmailInput" type="email" disabled /></label>
+      <button class="save-button full-save-button" type="submit">保存资料</button>
+    </form>
+  </div>
+  <div class="modal-backdrop hidden" id="userPasswordModal" role="dialog" aria-modal="true" aria-labelledby="userPasswordTitle">
+    <form class="task-modal" id="userPasswordForm">
+      <div class="modal-heading"><h2 id="userPasswordTitle">修改登录密码</h2><button class="modal-close" id="closeUserPasswordBtn" type="button" aria-label="关闭">×</button></div>
+      <label class="form-row">当前密码<input id="currentPasswordInput" type="password" autocomplete="current-password" required /></label>
+      <label class="form-row">新密码<input id="newUserPasswordInput" type="password" autocomplete="new-password" minlength="6" required placeholder="至少 6 位" /></label>
+      <label class="form-row">确认新密码<input id="confirmUserPasswordInput" type="password" autocomplete="new-password" minlength="6" required /></label>
+      <p class="auth-message" id="userPasswordMessage" role="status"></p>
+      <button class="save-button full-save-button" type="submit">确认修改</button>
     </form>
   </div>
   <div class="toast" id="toast"></div>

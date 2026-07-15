@@ -1,4 +1,4 @@
-const CACHE_NAME = 'summer-care-v6';
+const CACHE_NAME = 'summer-care-v7';
 const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './admin.html', './admin.css', './admin.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', event => {
