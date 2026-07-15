@@ -3,11 +3,16 @@ const SESSION_KEY = 'summerCareSessionV1';
 const ADMIN_KEY = 'summerCareAdminV1';
 const ADMIN_SESSION_KEY = 'summerCareAdminSessionV1';
 const USER_STATE_PREFIX = 'summerCareStateV2:';
+const DEFAULT_ADMIN = { username: 'admin', passwordHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918' };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => document.querySelectorAll(selector);
 
 let users = loadJson(USERS_KEY, {});
-let admin = loadJson(ADMIN_KEY, null);
+const storedAdmin = loadJson(ADMIN_KEY, null);
+let admin = storedAdmin?.credentialVersion === 2
+  ? storedAdmin
+  : { ...DEFAULT_ADMIN, credentialVersion: 2, createdAt: storedAdmin?.createdAt || new Date().toISOString() };
+localStorage.setItem(ADMIN_KEY, JSON.stringify(admin));
 let editingEmail = '';
 let passwordMode = 'user';
 
@@ -68,14 +73,11 @@ function formatDate(value) {
 }
 
 function showAuth() {
-  const setup = !admin;
   $('#adminAuthView').classList.remove('hidden');
   $('#adminDashboard').classList.add('hidden');
-  $('#adminAuthTitle').textContent = setup ? '设置管理员' : '管理员登录';
-  $('#adminAuthDescription').textContent = setup ? '首次使用，请设置管理员密码。' : '输入管理员密码进入用户管理后台。';
-  $('#adminConfirmRow').classList.toggle('hidden', !setup);
-  $('#adminConfirmInput').required = setup;
-  $('#adminAuthSubmit').textContent = setup ? '创建管理员' : '登录后台';
+  $('#adminAuthTitle').textContent = '管理员登录';
+  $('#adminAuthDescription').textContent = '使用管理员账户进入用户管理后台。';
+  $('#adminAuthSubmit').textContent = '登录后台';
   $('#adminAuthMessage').textContent = '';
 }
 
@@ -150,14 +152,10 @@ function toast(message) {
 
 $('#adminAuthForm').onsubmit = async event => {
   event.preventDefault();
+  const username = $('#adminUsernameInput').value.trim();
   const password = $('#adminPasswordInput').value;
-  if (!admin) {
-    if (password.length < 8) { $('#adminAuthMessage').textContent = '管理员密码至少需要 8 位。'; return; }
-    if (password !== $('#adminConfirmInput').value) { $('#adminAuthMessage').textContent = '两次输入的密码不一致。'; return; }
-    admin = { passwordHash: await hashPassword(password), createdAt: new Date().toISOString() };
-    localStorage.setItem(ADMIN_KEY, JSON.stringify(admin));
-  } else if (admin.passwordHash !== await hashPassword(password)) {
-    $('#adminAuthMessage').textContent = '管理员密码不正确。';
+  if (username !== admin.username || admin.passwordHash !== await hashPassword(password)) {
+    $('#adminAuthMessage').textContent = '管理员用户名或密码不正确。';
     return;
   }
   sessionStorage.setItem(ADMIN_SESSION_KEY, 'authenticated');
@@ -225,6 +223,8 @@ $('#passwordForm').onsubmit = async event => {
   const passwordHash = await hashPassword(password);
   if (passwordMode === 'admin') {
     admin.passwordHash = passwordHash;
+    admin.username = 'admin';
+    admin.credentialVersion = 2;
     localStorage.setItem(ADMIN_KEY, JSON.stringify(admin));
   } else if (users[editingEmail]) {
     users[editingEmail].passwordHash = passwordHash;
