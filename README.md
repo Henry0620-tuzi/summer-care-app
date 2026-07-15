@@ -13,3 +13,21 @@
 - 成长统计：连续打卡、本周柱状统计、学习洞察
 - 积分奖励：奖励列表、余额和兑换交互
 - 本地保存：刷新页面后保留打卡与积分状态
+
+## 自动同步 GitHub
+
+项目已连接到：
+
+`https://github.com/Henry0620-tuzi/summer-care-app.git`
+
+运行下面的命令即可持续监控文件变化，自动提交并推送到 GitHub：
+
+```bash
+./watch-sync.sh
+```
+
+也可以只同步一次：
+
+```bash
+./sync-project.sh
+```
