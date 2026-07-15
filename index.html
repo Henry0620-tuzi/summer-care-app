@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#f7f5ef" />
+  <title>小树暑托 · 暑假成长计划</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="phone-shell">
+    <header class="topbar">
+      <div class="brand-mark" aria-label="小树暑托"><span class="brand-dot"></span><span>小树暑托</span></div>
+      <button class="icon-button" id="notifyBtn" aria-label="通知"><span class="bell-icon">♧</span><i></i></button>
+    </header>
+
+    <section class="screen" id="homeScreen">
+      <div class="greeting-row">
+        <div>
+          <p class="eyebrow">星期三 · 7月15日</p>
+          <h1>早上好，<span>小满</span></h1>
+        </div>
+        <div class="avatar">满</div>
+      </div>
+
+      <section class="hero-card">
+        <div class="hero-copy">
+          <span class="pill orange-pill">今日成长</span>
+          <h2>一步一步，<br />把暑假过成自己的作品。</h2>
+          <p id="heroCaption">完成今天的计划，就能点亮一颗星星</p>
+        </div>
+        <div class="sun-art" aria-hidden="true"><span class="sun-core">☀</span><span class="cloud cloud-one"></span><span class="cloud cloud-two"></span><span class="leaf leaf-one"></span><span class="leaf leaf-two"></span></div>
+      </section>
+
+      <section class="overview-grid">
+        <div class="stat-card progress-stat">
+          <div class="stat-top"><span>今日进度</span><strong id="progressText">3/5</strong></div>
+          <div class="progress-track"><span id="progressBar"></span></div>
+          <small id="progressHint">还剩 2 项，加油！</small>
+        </div>
+        <div class="stat-card points-stat">
+          <div class="stat-top"><span>成长积分</span><strong id="pointsText">280</strong></div>
+          <div class="points-row"><span class="coin">✦</span><small>本周 +60</small></div>
+        </div>
+      </section>
+
+      <section class="section-heading"><div><p class="eyebrow">JUL 15 · WED</p><h3>今天的计划</h3></div><button class="text-button" id="editPlanBtn">编辑</button></section>
+      <div class="task-list" id="taskList"></div>
+
+      <section class="section-heading rewards-heading"><div><p class="eyebrow">KEEP GOING</p><h3>想要兑换什么？</h3></div><button class="text-button" id="viewAllRewardsBtn">全部奖励</button></section>
+      <div class="reward-strip" id="rewardStrip"></div>
+    </section>
+
+    <section class="screen hidden" id="statsScreen">
+      <div class="page-title"><p class="eyebrow">YOUR SUMMER</p><h1>成长统计</h1><p>每一次完成，都会变成看得见的进步。</p></div>
+      <div class="streak-card"><div><span class="pill green-pill">连续打卡</span><strong>7 <em>天</em></strong><p>保持这个节奏，暑假会很不一样</p></div><div class="streak-spark">✦</div></div>
+      <section class="chart-card"><div class="card-heading"><div><span class="eyebrow">THIS WEEK</span><h3>本周完成情况</h3></div><span class="week-total">16 / 22 项</span></div><div class="bar-chart" id="barChart"></div><div class="chart-labels"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div></section>
+      <section class="mini-stats"><div><span>学习时长</span><strong>12.5<span>h</span></strong><small>较上周 +2.5h</small></div><div><span>完成任务</span><strong>16<span>项</span></strong><small>超过 82% 的小伙伴</small></div></section>
+      <section class="insight-card"><div class="insight-icon">☼</div><div><strong>你的专属小发现</strong><p>上午 9:00—10:00 是你的高效时间，数学和阅读都完成得最好！</p></div></section>
+    </section>
+
+    <section class="screen hidden" id="rewardsScreen">
+      <div class="page-title"><p class="eyebrow">LITTLE WINS</p><h1>积分奖励</h1><p>把努力存起来，换成喜欢的东西。</p></div>
+      <div class="balance-card"><div><span>我的积分</span><strong id="balanceText">280</strong></div><div class="balance-star">✦</div><div class="balance-bottom"><span>本月已获得 240</span><span>即将过期 0</span></div></div>
+      <section class="section-heading rewards-heading"><div><p class="eyebrow">REDEEM</p><h3>可以兑换</h3></div></section>
+      <div class="reward-grid" id="rewardGrid"></div>
+    </section>
+
+    <nav class="bottom-nav" aria-label="主导航">
+      <button class="nav-item active" data-screen="homeScreen"><span>⌂</span><small>今日</small></button>
+      <button class="nav-item" data-screen="statsScreen"><span>▥</span><small>统计</small></button>
+      <button class="nav-item" data-screen="rewardsScreen"><span>♢</span><small>奖励</small></button>
+      <button class="nav-item" id="profileBtn"><span>◌</span><small>我的</small></button>
+    </nav>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
