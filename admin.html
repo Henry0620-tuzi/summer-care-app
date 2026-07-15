@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#263e35" />
+  <title>小树暑托 · 管理员后台</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <main class="admin-auth-shell" id="adminAuthView">
+    <a class="back-link" href="index.html">← 返回 App</a>
+    <section class="admin-auth-card">
+      <div class="admin-logo">🛡️</div>
+      <p class="eyebrow">SUMMER CARE ADMIN</p>
+      <h1 id="adminAuthTitle">设置管理员</h1>
+      <p class="auth-description" id="adminAuthDescription">首次使用，请设置管理员密码。</p>
+      <form id="adminAuthForm">
+        <label>管理员密码<input id="adminPasswordInput" type="password" minlength="8" required autocomplete="current-password" placeholder="至少 8 位" /></label>
+        <label id="adminConfirmRow">确认密码<input id="adminConfirmInput" type="password" minlength="8" autocomplete="new-password" placeholder="再次输入密码" /></label>
+        <button type="submit" id="adminAuthSubmit">创建管理员</button>
+      </form>
+      <p class="form-message" id="adminAuthMessage" role="status"></p>
+      <p class="security-note">管理员凭证与用户数据保存在当前浏览器。公开静态版不能跨设备集中管理。</p>
+    </section>
+  </main>
+
+  <div class="admin-layout hidden" id="adminDashboard">
+    <aside class="sidebar">
+      <a class="sidebar-brand" href="index.html"><span class="brand-leaf"></span><div><strong>小树暑托</strong><small>管理后台</small></div></a>
+      <nav>
+        <button class="side-nav active" type="button"><span>▦</span>用户管理</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button id="changeAdminPasswordBtn" type="button">修改管理员密码</button>
+        <button id="adminLogoutBtn" type="button">退出后台</button>
+        <a href="index.html">返回手机 App</a>
+      </div>
+    </aside>
+
+    <main class="dashboard-main">
+      <header class="dashboard-header">
+        <div><p class="eyebrow">USER MANAGEMENT</p><h1>用户管理</h1><p>查看并管理当前浏览器中的注册用户。</p></div>
+        <div class="admin-status"><span></span>管理员已登录</div>
+      </header>
+
+      <section class="summary-grid">
+        <article><span class="summary-icon green">👥</span><div><small>全部用户</small><strong id="totalUsersText">0</strong></div></article>
+        <article><span class="summary-icon orange">✓</span><div><small>正常账户</small><strong id="activeUsersText">0</strong></div></article>
+        <article><span class="summary-icon red">!</span><div><small>停用账户</small><strong id="disabledUsersText">0</strong></div></article>
+        <article><span class="summary-icon blue">✦</span><div><small>用户总积分</small><strong id="totalPointsText">0</strong></div></article>
+      </section>
+
+      <section class="user-panel">
+        <div class="panel-toolbar">
+          <div><h2>账户列表</h2><p id="userCountHint">共 0 位用户</p></div>
+          <div class="toolbar-actions">
+            <label class="search-box"><span>⌕</span><input id="userSearchInput" type="search" placeholder="搜索昵称或邮箱" /></label>
+            <select id="statusFilter" aria-label="账户状态筛选"><option value="all">全部状态</option><option value="active">正常</option><option value="disabled">已停用</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>用户</th><th>状态</th><th>当前积分</th><th>累计获得</th><th>注册时间</th><th>最近登录</th><th>操作</th></tr></thead>
+            <tbody id="userTableBody"></tbody>
+          </table>
+          <div class="empty-users hidden" id="emptyUsers"><span>🌱</span><strong>暂无匹配用户</strong><p>用户在 App 注册后会显示在这里。</p></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="admin-modal hidden" id="userModal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+    <form class="modal-card" id="userEditForm">
+      <div class="modal-heading"><div><p class="eyebrow">EDIT USER</p><h2 id="userModalTitle">编辑用户</h2></div><button class="modal-close" id="closeUserModalBtn" type="button" aria-label="关闭">×</button></div>
+      <label>孩子昵称<input id="adminUserNameInput" required maxlength="12" /></label>
+      <label>登录邮箱<input id="adminUserEmailInput" type="email" disabled /></label>
+      <label>账户状态<select id="adminUserStatusInput"><option value="active">正常</option><option value="disabled">停用</option></select></label>
+      <div class="field-grid"><label>当前积分<input id="adminUserPointsInput" type="number" min="0" max="999999" required /></label><label>累计获得<input id="adminUserEarnedInput" type="number" min="0" max="999999" required /></label></div>
+      <div class="modal-actions"><button class="secondary-button" id="resetUserPasswordBtn" type="button">重置密码</button><button class="primary-button" type="submit">保存修改</button></div>
+      <button class="danger-link" id="resetUserDataBtn" type="button">恢复该用户的示例数据</button>
+      <button class="danger-link delete" id="deleteUserBtn" type="button">永久删除该用户</button>
+    </form>
+  </div>
+
+  <div class="admin-modal hidden" id="passwordModal" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle">
+    <form class="modal-card small-modal" id="passwordForm">
+      <div class="modal-heading"><div><p class="eyebrow">SECURITY</p><h2 id="passwordModalTitle">重置用户密码</h2></div><button class="modal-close" id="closePasswordModalBtn" type="button" aria-label="关闭">×</button></div>
+      <label>新密码<input id="newPasswordInput" type="password" minlength="6" required placeholder="至少 6 位" /></label>
+      <label>确认新密码<input id="confirmNewPasswordInput" type="password" minlength="6" required placeholder="再次输入密码" /></label>
+      <button class="primary-button full-button" type="submit">确认修改</button>
+      <p class="form-message" id="passwordMessage" role="status"></p>
+    </form>
+  </div>
+
+  <div class="toast" id="adminToast"></div>
+  <script src="admin.js"></script>
+</body>
+</html>

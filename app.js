@@ -64,7 +64,8 @@ function loadSession() {
 
 let users = loadUsers();
 let currentUserEmail = loadSession();
-if (currentUserEmail && !users[currentUserEmail]) {
+Object.values(users).forEach(user => user.status ??= 'active');
+if (currentUserEmail && (!users[currentUserEmail] || users[currentUserEmail].status === 'disabled')) {
   currentUserEmail = '';
   localStorage.removeItem(SESSION_KEY);
 }
@@ -91,14 +92,18 @@ function loadState() {
   return freshState();
 }
 
-let state = loadState();
-state.totalEarned ??= 340;
-state.redeemed ??= 0;
-state.rewards = (state.rewards || clone(initialRewards)).map((reward, index) => ({ id: reward.id || index + 1, ...reward }));
-state.transactions ??= [];
-state.history ??= [3, 2, 3, 3, 1, 2, 1];
-state.plans ??= clone(initialPlans);
-state.selectedDay ??= 'today';
+function normalizeState(value) {
+  value.totalEarned ??= 340;
+  value.redeemed ??= 0;
+  value.rewards = (value.rewards || clone(initialRewards)).map((reward, index) => ({ id: reward.id || index + 1, ...reward }));
+  value.transactions ??= [];
+  value.history ??= [3, 2, 3, 3, 1, 2, 1];
+  value.plans ??= clone(initialPlans);
+  value.selectedDay ??= 'today';
+  return value;
+}
+
+let state = normalizeState(loadState());
 
 let editingTask = null;
 let editingReward = null;
@@ -132,14 +137,7 @@ function switchAccount(email) {
   currentUserEmail = email;
   if (email) localStorage.setItem(SESSION_KEY, email);
   else localStorage.removeItem(SESSION_KEY);
-  state = loadState();
-  state.totalEarned ??= 340;
-  state.redeemed ??= 0;
-  state.rewards = (state.rewards || clone(initialRewards)).map((reward, index) => ({ id: reward.id || index + 1, ...reward }));
-  state.transactions ??= [];
-  state.history ??= [3, 2, 3, 3, 1, 2, 1];
-  state.plans ??= clone(initialPlans);
-  state.selectedDay ??= 'today';
+  state = normalizeState(loadState());
   state.history[todayHistoryIndex()] = (state.plans.today || []).filter(task => task.done).length;
   save();
   render();
@@ -518,6 +516,12 @@ $('#loginForm').onsubmit = async event => {
     showAuthMessage('邮箱或密码不正确，请重新输入。');
     return;
   }
+  if (user.status === 'disabled') {
+    showAuthMessage('该账户已被管理员停用。');
+    return;
+  }
+  user.lastLoginAt = new Date().toISOString();
+  saveUsers();
   switchAccount(email);
   $('#loginForm').reset();
   toast(`欢迎回来，${user.name}`);
@@ -540,7 +544,7 @@ $('#registerForm').onsubmit = async event => {
     showAuthMessage('两次输入的密码不一致。');
     return;
   }
-  users[email] = { name, email, passwordHash: await hashPassword(password), createdAt: new Date().toISOString() };
+  users[email] = { name, email, passwordHash: await hashPassword(password), status: 'active', createdAt: new Date().toISOString(), lastLoginAt: new Date().toISOString() };
   saveUsers();
   switchAccount(email);
   $('#registerForm').reset();
@@ -568,6 +572,17 @@ document.addEventListener('keydown', event => {
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('./sw.js').catch(error => console.warn('离线功能注册失败。', error));
 }
+
+window.addEventListener('storage', event => {
+  if (![USERS_KEY, SESSION_KEY, activeStateKey()].includes(event.key)) return;
+  users = loadUsers();
+  Object.values(users).forEach(user => user.status ??= 'active');
+  const sessionEmail = loadSession();
+  currentUserEmail = sessionEmail && users[sessionEmail]?.status !== 'disabled' ? sessionEmail : '';
+  if (!currentUserEmail && sessionEmail) localStorage.removeItem(SESSION_KEY);
+  state = normalizeState(loadState());
+  render();
+});
 
 function toast(message) {
   const element = $('#toast');
