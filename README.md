@@ -25,6 +25,20 @@
 
 项目已连接到 Supabase：`wdbnovqnlzlqkgrqrpuq`。前端只使用可公开的 Publishable Key；数据库已启用行级安全策略，普通用户只能读写自己的数据。
 
+### 免费套餐护栏
+
+- Supabase 组织固定使用 Free Plan，并保持 Spend Cap 开启
+- 不绑定付款方式，不自动升级套餐，不购买 Compute、Credit 或其他附加项
+- 当前应用仅使用 Auth、Database 和 RPC，不使用 Storage、Realtime、Edge Functions、SSO 或图片转换
+- `free-plan-guard.sh` 会在提交和自动同步前扫描代码；如果误接高用量功能或前端 Secret Key，将阻止提交
+- 免费额度耗尽时允许服务暂停或进入只读状态，不允许产生超额费用
+
+手动检查护栏：
+
+```bash
+./free-plan-guard.sh
+```
+
 ## 自动同步 GitHub
 
 项目已连接到：

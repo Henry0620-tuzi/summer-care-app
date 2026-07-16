@@ -1,0 +1,5 @@
+#!/bin/zsh
+if [ "${SKIP_AUTO_PUSH:-}" = "1" ]; then
+  exit 0
+fi
+git push origin main

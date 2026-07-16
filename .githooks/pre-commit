@@ -1,0 +1,8 @@
+#!/bin/zsh
+set -e
+cd "$(git rev-parse --show-toplevel)"
+./free-plan-guard.sh
+node --check app.js
+node --check admin.js
+node --check sw.js
+git diff --cached --check

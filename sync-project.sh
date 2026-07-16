@@ -2,6 +2,7 @@
 set -e
 cd "$(dirname "$0")"
 
+./free-plan-guard.sh
 git add -A
 if git diff --cached --quiet; then
   exit 0
