@@ -36,7 +36,7 @@ function downloadJson(filename, value) {
 
 function freshUserState() {
   return {
-    points: 280, totalEarned: 340, selectedDay: 'today', redeemed: 0,
+    points: 280, totalEarned: 340, selectedDay: 'today', redeemed: 0, planDate: window.SummerCareDaily.dateKey(), dailyRecords: [],
     history: [3, 2, 3, 3, 1, 2, 1],
     plans: {
       today: [{ id: 1, title: '晨读《昆虫记》', meta: '语文 · 20分钟', points: 10, done: true }, { id: 2, title: '数学口算练习', meta: '数学 · 30道', points: 15, done: true }, { id: 3, title: '英语单词打卡', meta: '英语 · Unit 3', points: 10, done: true }, { id: 4, title: '跳绳运动', meta: '运动 · 20分钟', points: 15, done: false }],

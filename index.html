@@ -65,10 +65,10 @@
 
     <section class="screen hidden" id="statsScreen">
       <div class="page-title"><p class="eyebrow">YOUR SUMMER</p><h1>成长统计</h1><p>每一次完成，都会变成看得见的进步。</p></div>
-      <div class="streak-card"><div><span class="pill green-pill">连续打卡</span><strong id="streakText">7 <em>天</em></strong><p>保持这个节奏，暑假会很不一样</p></div><div class="streak-spark">✦</div></div>
-      <section class="chart-card"><div class="card-heading"><div><span class="eyebrow">THIS WEEK</span><h3>本周完成情况</h3></div><span class="week-total" id="weekTotal">16 / 22 项</span></div><div class="bar-chart" id="barChart"></div><div class="chart-labels"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div></section>
-      <section class="mini-stats"><div><span>学习时长</span><strong id="studyTime">12.5<span>h</span></strong><small>较上周 +2.5h</small></div><div><span>完成任务</span><strong id="completedTotal">16<span>项</span></strong><small>超过 82% 的小伙伴</small></div></section>
-      <section class="insight-card"><div class="insight-icon">☼</div><div><strong>你的专属小发现</strong><p>上午 9:00—10:00 是你的高效时间，数学和阅读都完成得最好！</p></div></section>
+      <div class="streak-card"><div><span class="pill green-pill">连续打卡</span><strong id="streakText">0 <em>天</em></strong><p id="streakHint">从今天的一项小计划开始吧</p></div><div class="streak-spark">✦</div></div>
+      <section class="chart-card"><div class="card-heading"><div><span class="eyebrow">LAST 7 DAYS</span><h3>近 7 天完成情况</h3></div><span class="week-total" id="weekTotal">0 / 0 项</span></div><div class="bar-chart" id="barChart"></div><div class="chart-labels" id="chartLabels"></div></section>
+      <section class="mini-stats"><div><span>学习时长</span><strong id="studyTime">0<span>h</span></strong><small id="studyHint">按已完成计划估算</small></div><div><span>完成任务</span><strong id="completedTotal">0<span>项</span></strong><small id="completionRateHint">完成率 0%</small></div></section>
+      <section class="insight-card"><div class="insight-icon">☼</div><div><strong>你的专属小发现</strong><p id="insightText">完成第一项计划后，这里会生成真实成长建议。</p></div></section>
     </section>
 
     <section class="screen hidden" id="rewardsScreen">
@@ -183,6 +183,7 @@
   <div class="toast" id="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
   <script src="supabase-config.js"></script>
+  <script src="daily-state.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

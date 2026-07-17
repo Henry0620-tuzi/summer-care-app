@@ -7,6 +7,7 @@ files=(
   admin.html
   app.js
   admin.js
+  daily-state.js
   supabase-config.js
   sw.js
   manifest.webmanifest

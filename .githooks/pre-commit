@@ -4,5 +4,7 @@ cd "$(git rev-parse --show-toplevel)"
 ./free-plan-guard.sh
 node --check app.js
 node --check admin.js
+node --check daily-state.js
 node --check sw.js
+node tests/daily-state.test.js
 git diff --cached --check

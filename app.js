@@ -27,23 +27,38 @@ const initialRewards = [
 const $ = selector => document.querySelector(selector);
 const $$ = selector => document.querySelectorAll(selector);
 const clone = value => JSON.parse(JSON.stringify(value));
+const Daily = window.SummerCareDaily;
 
 function freshState() {
   return {
     points: 280,
     totalEarned: 340,
     selectedDay: 'today',
+    planDate: Daily.dateKey(),
     plans: clone(initialPlans),
     rewards: clone(initialRewards),
     history: [3, 2, 3, 3, 1, 2, 1],
     redeemed: 0,
     redemptions: [],
+    dailyRecords: [],
     transactions: [
       { id: 3, amount: 10, label: '完成「英语单词打卡」', time: '今天 09:20' },
       { id: 2, amount: 15, label: '完成「数学口算练习」', time: '今天 08:55' },
       { id: 1, amount: 10, label: '完成「晨读《昆虫记》」', time: '今天 08:20' }
     ]
   };
+}
+
+function freshAccountState() {
+  const value = freshState();
+  value.points = 0;
+  value.totalEarned = 0;
+  value.redeemed = 0;
+  value.plans = Object.fromEntries(Object.entries(value.plans).map(([day, tasks]) => [day, tasks.map(task => ({ ...task, done: false }))]));
+  value.history = [0, 0, 0, 0, 0, 0, 0];
+  value.dailyRecords = [];
+  value.transactions = [];
+  return value;
 }
 
 const GUEST_STATE_KEY = 'summerCareStateV2';
@@ -88,6 +103,9 @@ function normalizeState(value) {
   value.history ??= [3, 2, 3, 3, 1, 2, 1];
   value.plans ??= clone(initialPlans);
   value.selectedDay ??= 'today';
+  value.planDate ??= Daily.dateKey();
+  value.dailyRecords ??= [];
+  Daily.rollForward(value);
   return value;
 }
 
@@ -98,6 +116,7 @@ let editingReward = null;
 let passwordRecoveryMode = false;
 
 function save() {
+  Daily.refreshToday(state);
   localStorage.setItem(activeStateKey(), JSON.stringify(state));
   if (!authUser) return;
   const userId = authUser.id;
@@ -129,9 +148,9 @@ async function loadCloudAccount(user) {
   const { data: stateData, error: stateError } = await supabaseClient.from('app_states').select('state').eq('user_id', user.id).maybeSingle();
   if (stateError) throw stateError;
   const cloudState = stateData?.state;
-  const localState = loadState();
+  const localState = localStorage.getItem(activeStateKey()) ? loadState() : freshAccountState();
   state = normalizeState(cloudState && Object.keys(cloudState).length ? cloudState : localState);
-  state.history[todayHistoryIndex()] = (state.plans.today || []).filter(task => task.done).length;
+  Daily.refreshToday(state);
   localStorage.setItem(activeStateKey(), JSON.stringify(state));
   await Promise.all([
     supabaseClient.from('app_states').upsert({ user_id: user.id, state, updated_at: new Date().toISOString() }),
@@ -178,10 +197,12 @@ function closeAccountModals() {
 
 function weeklyReportText() {
   const user = currentUser();
-  const completed = state.history.reduce((sum, value) => sum + value, 0);
+  const records = Daily.recentRecords(state);
+  const completed = records.reduce((sum, record) => sum + record.completed, 0);
+  const total = records.reduce((sum, record) => sum + record.total, 0);
   const todayDone = (state.plans.today || []).filter(task => task.done).length;
   const todayTotal = (state.plans.today || []).length;
-  return `🌱 ${user?.name || '小满'}的暑假成长周报\n本周完成 ${completed} 项计划\n今天进度 ${todayDone}/${todayTotal}\n当前成长积分 ${state.points}\n累计获得 ${state.totalEarned} 分\n一步一步，把暑假过成自己的作品。`;
+  return `🌱 ${user?.name || '小满'}的暑假成长周报\n近 7 天完成 ${completed}/${total} 项计划\n今天进度 ${todayDone}/${todayTotal}\n当前成长积分 ${state.points}\n累计获得 ${state.totalEarned} 分\n一步一步，把暑假过成自己的作品。`;
 }
 
 function getDayInfo(day) {
@@ -199,7 +220,7 @@ function todayHistoryIndex() {
   return (new Date().getDay() + 6) % 7;
 }
 
-state.history[todayHistoryIndex()] = (state.plans.today || []).filter(task => task.done).length;
+Daily.refreshToday(state);
 
 function formatGreetingDate() {
   const date = new Date();
@@ -285,6 +306,7 @@ function toggleTask(id) {
   state.totalEarned += change;
   const todayIndex = todayHistoryIndex();
   if (day === 'today') state.history[todayIndex] = Math.max(0, (state.history[todayIndex] || 0) + (task.done ? 1 : -1));
+  if (day === 'today') Daily.refreshToday(state);
   addTransaction(change, `${task.done ? '完成' : '取消'}「${task.title}」`);
   save();
   render();
@@ -303,7 +325,8 @@ function renderRewards() {
   $('#balanceText').textContent = state.points;
   $('#pointsText').textContent = state.points;
   $('#earnedText').textContent = `本月已获得 ${state.totalEarned}`;
-  $('#weekPoints').textContent = `本周 +${Math.max(0, state.history.reduce((sum, value) => sum + value, 0) * 10)}`;
+  const recentPoints = Daily.recentRecords(state).reduce((sum, record) => sum + record.earnedPoints, 0);
+  $('#weekPoints').textContent = `近 7 天 +${recentPoints}`;
   renderRedemptions();
   $$('[data-reward]').forEach(button => button.onclick = () => redeem(Number(button.dataset.reward)));
   $$('[data-reward-edit]').forEach(button => button.onclick = () => openRewardModal(Number(button.dataset.rewardEdit)));
@@ -349,15 +372,28 @@ function renderHistory() {
 }
 
 function renderChart() {
-  const values = state.history;
-  const completed = values.reduce((sum, value) => sum + value, 0);
-  const planned = Math.max(completed + 6, 22);
-  const max = Math.max(...values, 4);
-  $('#barChart').innerHTML = values.map((value, index) => `<div class="bar ${index === todayHistoryIndex() ? 'today' : ''}" style="height:${Math.max(8, value / max * 100)}%" data-value="${value}"></div>`).join('');
+  const records = Daily.recentRecords(state);
+  const completed = records.reduce((sum, record) => sum + record.completed, 0);
+  const planned = records.reduce((sum, record) => sum + record.total, 0);
+  const minutes = records.reduce((sum, record) => sum + record.minutes, 0);
+  const max = Math.max(...records.map(record => record.total), 1);
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  $('#barChart').innerHTML = records.map((record, index) => `<div class="bar ${index === records.length - 1 ? 'today' : ''}" style="height:${Math.max(8, record.completed / max * 100)}%" data-value="${record.completed}"></div>`).join('');
+  $('#chartLabels').innerHTML = records.map(record => `<span>${weekdays[new Date(`${record.date}T00:00:00`).getDay()]}</span>`).join('');
   $('#weekTotal').textContent = `${completed} / ${planned} 项`;
   $('#completedTotal').innerHTML = `${completed}<span>项</span>`;
-  $('#studyTime').innerHTML = `${(completed * 0.55).toFixed(1)}<span>h</span>`;
-  $('#streakText').innerHTML = `${Math.max(1, Math.min(14, completed ? 7 : 1))} <em>天</em>`;
+  $('#studyTime').innerHTML = `${(minutes / 60).toFixed(1)}<span>h</span>`;
+  const completionRate = planned ? Math.round(completed / planned * 100) : 0;
+  $('#completionRateHint').textContent = `完成率 ${completionRate}%`;
+  $('#studyHint').textContent = minutes ? `近 7 天累计 ${minutes} 分钟` : '按已完成计划估算';
+  const streak = Daily.streak(records);
+  $('#streakText').innerHTML = `${streak} <em>天</em>`;
+  $('#streakHint').textContent = streak ? `已经连续 ${streak} 天完成计划` : '从今天的一项小计划开始吧';
+  const best = records.reduce((current, record) => record.completed > current.completed ? record : current, records[0]);
+  const [, bestMonth, bestDay] = best.date.split('-').map(Number);
+  $('#insightText').textContent = completed
+    ? `近 7 天完成率 ${completionRate}%，${best.completed ? `${bestMonth}月${bestDay}日完成最多，共 ${best.completed} 项。` : '继续完成今天的计划吧。'}`
+    : '完成第一项计划后，这里会生成真实成长建议。';
 }
 
 function render() {
@@ -803,6 +839,7 @@ function toast(message) {
 }
 
 async function initializeApp() {
+  localStorage.setItem(activeStateKey(), JSON.stringify(state));
   render();
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (!session?.user) return;
@@ -813,6 +850,13 @@ async function initializeApp() {
     showAuthMessage(error.message || '云端账户加载失败，请重新登录。');
   }
 }
+
+window.addEventListener('focus', () => {
+  const previousPlanDate = state.planDate;
+  normalizeState(state);
+  if (state.planDate !== previousPlanDate) save();
+  render();
+});
 
 supabaseClient.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_OUT' && !session) clearCloudAccount();
