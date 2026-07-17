@@ -37,6 +37,7 @@ function freshState() {
     rewards: clone(initialRewards),
     history: [3, 2, 3, 3, 1, 2, 1],
     redeemed: 0,
+    redemptions: [],
     transactions: [
       { id: 3, amount: 10, label: '完成「英语单词打卡」', time: '今天 09:20' },
       { id: 2, amount: 15, label: '完成「数学口算练习」', time: '今天 08:55' },
@@ -77,6 +78,11 @@ function loadState() {
 function normalizeState(value) {
   value.totalEarned ??= 340;
   value.redeemed ??= 0;
+  value.redemptions = (value.redemptions || []).map((redemption, index) => ({
+    ...redemption,
+    id: redemption.id || index + 1,
+    status: redemption.status || 'pending'
+  }));
   value.rewards = (value.rewards || clone(initialRewards)).map((reward, index) => ({ id: reward.id || index + 1, ...reward }));
   value.transactions ??= [];
   value.history ??= [3, 2, 3, 3, 1, 2, 1];
@@ -231,6 +237,13 @@ function addTransaction(amount, label) {
   state.transactions = state.transactions.slice(0, 30);
 }
 
+function formatRedemptionTime(value) {
+  if (!value) return '刚刚';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '刚刚';
+  return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 function renderTasks() {
   const tasks = currentPlans();
   const done = tasks.filter(task => task.done).length;
@@ -291,8 +304,22 @@ function renderRewards() {
   $('#pointsText').textContent = state.points;
   $('#earnedText').textContent = `本月已获得 ${state.totalEarned}`;
   $('#weekPoints').textContent = `本周 +${Math.max(0, state.history.reduce((sum, value) => sum + value, 0) * 10)}`;
+  renderRedemptions();
   $$('[data-reward]').forEach(button => button.onclick = () => redeem(Number(button.dataset.reward)));
   $$('[data-reward-edit]').forEach(button => button.onclick = () => openRewardModal(Number(button.dataset.rewardEdit)));
+}
+
+function renderRedemptions() {
+  const pending = state.redemptions.filter(item => item.status === 'pending');
+  const entries = [...state.redemptions].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 8);
+  $('#redemptionCount').textContent = `${pending.length} 个待领取`;
+  $('#redemptionList').innerHTML = entries.length
+    ? entries.map(item => `<article class="redemption-item ${item.status}">
+        <div class="redemption-icon">${safe(item.icon || '🎁')}</div>
+        <div><strong>${safe(item.name)}</strong><small>${formatRedemptionTime(item.redeemedAt)} · ${Number(item.cost) || 0} 积分</small></div>
+        <span>${item.status === 'received' ? '已领取' : '待家长确认'}</span>
+      </article>`).join('')
+    : '<div class="empty-state">兑换奖励后，会在这里等待家长确认领取。</div>';
 }
 
 function redeem(id) {
@@ -300,10 +327,19 @@ function redeem(id) {
   if (!reward || state.points < reward.cost) return;
   state.points -= reward.cost;
   state.redeemed += reward.cost;
+  state.redemptions.unshift({
+    id: Date.now(),
+    rewardId: reward.id,
+    icon: reward.icon,
+    name: reward.name,
+    cost: reward.cost,
+    status: 'pending',
+    redeemedAt: new Date().toISOString()
+  });
   addTransaction(-reward.cost, `兑换「${reward.name}」`);
   save();
   render();
-  toast(`已兑换「${reward.name}」，记得找家长领取哦！`);
+  toast(`已兑换「${reward.name}」，等待家长确认领取`);
 }
 
 function renderHistory() {
@@ -331,6 +367,37 @@ function render() {
   renderRewards();
   renderHistory();
   renderChart();
+  renderNotifications();
+}
+
+function renderNotifications() {
+  const pendingTasks = (state.plans.today || []).filter(task => !task.done);
+  const pendingRewards = state.redemptions.filter(item => item.status === 'pending');
+  const noticeCount = pendingTasks.length + pendingRewards.length;
+  const badge = $('#notifyBadge');
+  badge.textContent = noticeCount > 9 ? '9+' : String(noticeCount);
+  badge.classList.toggle('hidden', noticeCount === 0);
+  $('#notifyBtn').setAttribute('aria-label', noticeCount ? `通知，${noticeCount} 条待处理` : '通知，无待处理事项');
+
+  const notices = [];
+  if (pendingTasks.length) notices.push({ icon: '✓', title: `今天还有 ${pendingTasks.length} 项计划`, text: pendingTasks.slice(0, 2).map(task => task.title).join('、'), screen: 'homeScreen', action: '去完成' });
+  if (pendingRewards.length) notices.push({ icon: '🎁', title: `${pendingRewards.length} 个奖励等待领取`, text: pendingRewards.slice(0, 2).map(item => item.name).join('、'), screen: 'rewardsScreen', action: '去查看' });
+  $('#notificationList').innerHTML = notices.length
+    ? notices.map(notice => `<article class="notification-item"><span>${notice.icon}</span><div><strong>${safe(notice.title)}</strong><small>${safe(notice.text)}</small></div><button type="button" data-notice-screen="${notice.screen}">${notice.action}</button></article>`).join('')
+    : '<div class="notification-empty"><span>🌿</span><strong>今天都处理好啦</strong><p>计划已完成，奖励也都领取了。</p></div>';
+  $$('[data-notice-screen]').forEach(button => button.onclick = () => {
+    closeNotifications();
+    showScreen(button.dataset.noticeScreen);
+  });
+}
+
+function openNotifications() {
+  renderNotifications();
+  $('#notificationModal').classList.remove('hidden');
+}
+
+function closeNotifications() {
+  $('#notificationModal').classList.add('hidden');
 }
 
 function renderAccount() {
@@ -535,7 +602,9 @@ $('#taskModal').onclick = event => { if (event.target === event.currentTarget) c
 $('#addRewardBtn').onclick = () => openRewardModal();
 $('#closeRewardModalBtn').onclick = closeRewardModal;
 $('#rewardModal').onclick = event => { if (event.target === event.currentTarget) closeRewardModal(); };
-$('#notifyBtn').onclick = () => toast('今天 18:00 有一条待完成计划');
+$('#notifyBtn').onclick = openNotifications;
+$('#closeNotificationBtn').onclick = closeNotifications;
+$('#notificationModal').onclick = event => { if (event.target === event.currentTarget) closeNotifications(); };
 $$('.auth-tab').forEach(button => button.onclick = () => setAuthTab(button.dataset.authTab));
 $('#loginForm').onsubmit = async event => {
   event.preventDefault();
@@ -718,6 +787,7 @@ document.addEventListener('keydown', event => {
   closeTaskModal();
   closeRewardModal();
   closeAccountModals();
+  closeNotifications();
 });
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

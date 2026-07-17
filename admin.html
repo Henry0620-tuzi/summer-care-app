@@ -61,6 +61,7 @@
         <article><span class="summary-icon orange">✓</span><div><small>正常账户</small><strong id="activeUsersText">0</strong></div></article>
         <article><span class="summary-icon red">!</span><div><small>停用账户</small><strong id="disabledUsersText">0</strong></div></article>
         <article><span class="summary-icon blue">✦</span><div><small>用户总积分</small><strong id="totalPointsText">0</strong></div></article>
+        <article><span class="summary-icon purple">🎁</span><div><small>待发奖励</small><strong id="pendingRewardsText">0</strong></div></article>
       </section>
 
       <section class="user-panel">
@@ -74,7 +75,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>用户</th><th>状态</th><th>当前积分</th><th>累计获得</th><th>注册时间</th><th>最近登录</th><th>操作</th></tr></thead>
+            <thead><tr><th>用户</th><th>状态</th><th>当前积分</th><th>待发奖励</th><th>累计获得</th><th>注册时间</th><th>最近登录</th><th>操作</th></tr></thead>
             <tbody id="userTableBody"></tbody>
           </table>
           <div class="empty-users hidden" id="emptyUsers"><span>🌱</span><strong>暂无匹配用户</strong><p>用户在 App 注册后会显示在这里。</p></div>
@@ -90,6 +91,7 @@
       <label>登录邮箱<input id="adminUserEmailInput" type="email" disabled /></label>
       <label>账户状态<select id="adminUserStatusInput"><option value="active">正常</option><option value="disabled">停用</option></select></label>
       <div class="field-grid"><label>当前积分<input id="adminUserPointsInput" type="number" min="0" max="999999" required /></label><label>累计获得<input id="adminUserEarnedInput" type="number" min="0" max="999999" required /></label></div>
+      <section class="fulfillment-section"><div class="fulfillment-heading"><strong>待领取奖励</strong><span id="pendingRewardHint">0 个</span></div><div class="fulfillment-list" id="adminRewardList"></div></section>
       <div class="modal-actions"><button class="primary-button" type="submit">保存修改</button></div>
       <button class="danger-link" id="resetUserDataBtn" type="button">恢复该用户的示例数据</button>
       <button class="danger-link delete" id="deleteUserBtn" type="button">永久删除该用户</button>

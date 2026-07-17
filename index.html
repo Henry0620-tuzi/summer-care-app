@@ -18,7 +18,7 @@
   <main class="phone-shell">
     <header class="topbar">
       <div class="brand-mark" aria-label="小树暑托"><span class="brand-dot"></span><span>小树暑托</span></div>
-      <button class="icon-button" id="notifyBtn" aria-label="通知"><span class="bell-icon">♧</span><i></i></button>
+      <button class="icon-button" id="notifyBtn" aria-label="通知"><span class="bell-icon">♧</span><i id="notifyBadge">0</i></button>
     </header>
 
     <section class="screen" id="homeScreen">
@@ -76,6 +76,8 @@
       <div class="balance-card"><div><span>我的积分</span><strong id="balanceText">280</strong></div><div class="balance-star">✦</div><div class="balance-bottom"><span id="earnedText">本月已获得 240</span><span>即将过期 0</span></div></div>
       <section class="section-heading rewards-heading"><div><p class="eyebrow">REDEEM</p><h3>可以兑换</h3></div><button class="text-button" id="addRewardBtn">+ 新增奖励</button></section>
       <div class="reward-grid" id="rewardGrid"></div>
+      <section class="section-heading redemption-heading"><div><p class="eyebrow">REWARD DELIVERY</p><h3>奖励领取</h3></div><span class="redemption-count" id="redemptionCount">0 个待领取</span></section>
+      <div class="redemption-list" id="redemptionList"></div>
       <section class="section-heading history-heading"><div><p class="eyebrow">POINTS LOG</p><h3>积分记录</h3></div></section>
       <div class="points-history" id="pointsHistory"></div>
     </section>
@@ -171,6 +173,12 @@
       <p class="auth-message" id="userPasswordMessage" role="status"></p>
       <button class="save-button full-save-button" type="submit">确认修改</button>
     </form>
+  </div>
+  <div class="modal-backdrop hidden" id="notificationModal" role="dialog" aria-modal="true" aria-labelledby="notificationTitle">
+    <section class="task-modal notification-modal">
+      <div class="modal-heading"><div><p class="eyebrow">TODAY</p><h2 id="notificationTitle">通知中心</h2></div><button class="modal-close" id="closeNotificationBtn" type="button" aria-label="关闭">×</button></div>
+      <div class="notification-list" id="notificationList"></div>
+    </section>
   </div>
   <div class="toast" id="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>

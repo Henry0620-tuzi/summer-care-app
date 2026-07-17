@@ -18,6 +18,10 @@ function formatDate(value) {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
+function pendingRedemptions(user) {
+  return (user.state?.redemptions || []).filter(item => item.status !== 'received');
+}
+
 function downloadJson(filename, value) {
   const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -40,6 +44,7 @@ function freshUserState() {
       later: [{ id: 6, title: '阅读英语绘本', meta: '英语 · 1本', points: 15, done: false }]
     },
     rewards: [{ id: 1, icon: '🎨', name: '自由画画 30 分钟', cost: 50, desc: '尽情画出你的想象' }, { id: 2, icon: '🍦', name: '冰淇淋一支', cost: 80, desc: '夏天的小小甜蜜' }],
+    redemptions: [],
     transactions: [{ id: 1, amount: 10, label: '完成「晨读《昆虫记》」', time: '今天 08:20' }]
   };
 }
@@ -117,9 +122,10 @@ async function renderUsers() {
   $('#activeUsersText').textContent = cloudUsers.filter(user => user.status === 'active').length;
   $('#disabledUsersText').textContent = cloudUsers.filter(user => user.status === 'disabled').length;
   $('#totalPointsText').textContent = cloudUsers.reduce((sum, user) => sum + (Number(user.state?.points) || 0), 0);
+  $('#pendingRewardsText').textContent = cloudUsers.reduce((sum, user) => sum + pendingRedemptions(user).length, 0);
   $('#userCountHint').textContent = `共 ${entries.length} 位用户`;
   $('#emptyUsers').classList.toggle('hidden', entries.length > 0);
-  $('#userTableBody').innerHTML = entries.map(user => `<tr><td><div class="user-cell"><div class="user-avatar">${safe(user.name.slice(-1))}</div><div><strong>${safe(user.name)}</strong><small>${safe(user.email)}${user.role === 'admin' ? ' · 管理员' : ''}</small></div></div></td><td><span class="status-pill ${user.status}">${user.status === 'active' ? '正常' : '已停用'}</span></td><td><span class="points-value">${Number(user.state?.points) || 0}</span></td><td><span class="points-value">${Number(user.state?.totalEarned) || 0}</span></td><td>${formatDate(user.created_at)}</td><td>${formatDate(user.last_login_at)}</td><td><button class="edit-user-button" data-edit-user="${user.id}">管理</button></td></tr>`).join('');
+  $('#userTableBody').innerHTML = entries.map(user => `<tr><td><div class="user-cell"><div class="user-avatar">${safe(user.name.slice(-1))}</div><div><strong>${safe(user.name)}</strong><small>${safe(user.email)}${user.role === 'admin' ? ' · 管理员' : ''}</small></div></div></td><td><span class="status-pill ${user.status}">${user.status === 'active' ? '正常' : '已停用'}</span></td><td><span class="points-value">${Number(user.state?.points) || 0}</span></td><td><span class="reward-count ${pendingRedemptions(user).length ? 'has-pending' : ''}">${pendingRedemptions(user).length}</span></td><td><span class="points-value">${Number(user.state?.totalEarned) || 0}</span></td><td>${formatDate(user.created_at)}</td><td>${formatDate(user.last_login_at)}</td><td><button class="edit-user-button" data-edit-user="${user.id}">管理</button></td></tr>`).join('');
   $$('[data-edit-user]').forEach(button => button.onclick = () => openUserModal(button.dataset.editUser));
 }
 
@@ -134,8 +140,32 @@ function openUserModal(id) {
   $('#adminUserStatusInput').disabled = user.id === adminProfile.id;
   $('#adminUserPointsInput').value = Number(user.state?.points) || 0;
   $('#adminUserEarnedInput').value = Number(user.state?.totalEarned) || 0;
+  renderUserRewards(user);
   $('#deleteUserBtn').classList.toggle('hidden', user.id === adminProfile.id);
   $('#userModal').classList.remove('hidden');
+}
+
+function renderUserRewards(user) {
+  const pending = pendingRedemptions(user);
+  $('#pendingRewardHint').textContent = `${pending.length} 个`;
+  $('#adminRewardList').innerHTML = pending.length
+    ? pending.map(item => `<article class="fulfillment-item"><span>${safe(item.icon || '🎁')}</span><div><strong>${safe(item.name)}</strong><small>${Number(item.cost) || 0} 积分 · ${formatDate(item.redeemedAt)}</small></div><button type="button" data-fulfill-reward="${item.id}">确认已领取</button></article>`).join('')
+    : '<p class="fulfillment-empty">该用户暂无待领取奖励。</p>';
+  $$('[data-fulfill-reward]').forEach(button => button.onclick = () => fulfillReward(Number(button.dataset.fulfillReward)));
+}
+
+async function fulfillReward(redemptionId) {
+  const user = cloudUsers.find(item => item.id === editingUserId);
+  if (!user) return;
+  const nextState = { ...(user.state || freshUserState()) };
+  nextState.redemptions = (nextState.redemptions || []).map(item => Number(item.id) === redemptionId
+    ? { ...item, status: 'received', receivedAt: new Date().toISOString() }
+    : item);
+  const { error } = await supabaseClient.rpc('admin_update_user', { target_id: user.id, target_name: user.name, target_status: user.status, target_state: nextState });
+  if (error) { toast(`确认失败：${error.message}`); return; }
+  await renderUsers();
+  openUserModal(user.id);
+  toast('奖励已确认领取');
 }
 
 function closeUserModal() {
